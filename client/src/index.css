@@ -44,6 +44,14 @@
 }
 
 /* Motion — used sparingly for above-the-fold entrance + ambient glow */
+
+@keyframes fadeUp { from { opacity:0; transform: translateY(18px);} to { opacity:1; transform:none;} }
+@keyframes floaty { 0%,100% { transform: translateY(0);} 50% { transform: translateY(-14px);} }
+.fade-up { animation: fadeUp .6s cubic-bezier(.22,1,.36,1) both; }
+.floaty { animation: floaty 7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce){ .fade-up,.floaty{ animation:none; } }
+
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: none; }
