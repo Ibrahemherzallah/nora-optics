@@ -15,11 +15,14 @@ export interface SaleRecord {
   accessoriesCost?: number;
   sellingPrice: number; // unit selling price = customPrice ?? originalPrice
   profit: number; // (sellingPrice - cost) * quantity - (accessoriesCost || 0)
+  notes?: string;
   createdAt: Date;
 }
 
 export interface SaleFileDoc extends Document {
-  customer: Types.ObjectId;
+  customer?: Types.ObjectId;   // optional now (walk-in has none)
+  walkIn: boolean;             // NEW: shop walk-in, no customer file
+  notes?: string;              // NEW
   records: SaleRecord[];
   eyeExam?: Types.ObjectId;
   origin: 'admin' | 'online';
@@ -45,6 +48,7 @@ const recordSchema = new Schema<SaleRecord>(
     accessoriesCost: { type: Number, min: 0 },
     sellingPrice: { type: Number, required: true, min: 0 },
     profit: { type: Number, required: true },
+    notes: { type: String },        // NEW
     createdAt: { type: Date, default: Date.now },
   },
   { _id: true }
@@ -52,7 +56,9 @@ const recordSchema = new Schema<SaleRecord>(
 
 const saleFileSchema = new Schema<SaleFileDoc>(
   {
-    customer: { type: Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
+    customer: { type: Schema.Types.ObjectId, ref: 'Customer', index: true }, // removed required:true
+    walkIn: { type: Boolean, default: false },
+    notes: { type: String },
     records: { type: [recordSchema], default: [] },
     eyeExam: { type: Schema.Types.ObjectId, ref: 'EyeExam' },
     origin: { type: String, enum: ['admin', 'online'], required: true },

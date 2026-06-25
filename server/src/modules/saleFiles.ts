@@ -7,26 +7,28 @@ import { requireAdmin, validate, ApiError } from '../middleware';
 
 const router = Router();
 
-const recordInput = z
-  .object({
-    productId: z.string().min(1),
-    priceType: z.enum(['original', 'custom']),
-    customPrice: z.number().min(0).optional(),
-    quantity: z.number().int().min(1).default(1),
-    hasAccessories: z.boolean().default(false),
-    accessoriesDesc: z.string().optional(),
-    accessoriesCost: z.number().min(0).optional(),
-  })
-  .superRefine((v, ctx) => {
-    if (v.priceType === 'custom' && (v.customPrice === undefined || v.customPrice === null))
-      ctx.addIssue({ code: 'custom', message: 'السعر المخصص مطلوب', path: ['customPrice'] });
-    if (v.hasAccessories) {
-      if (!v.accessoriesDesc) ctx.addIssue({ code: 'custom', message: 'وصف الملحقات مطلوب', path: ['accessoriesDesc'] });
-      if (v.accessoriesCost === undefined) ctx.addIssue({ code: 'custom', message: 'تكلفة الملحقات مطلوبة', path: ['accessoriesCost'] });
-    }
-  });
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-// Build a persisted SaleRecord from a product snapshot + pricing input.
+const recordInput = z
+    .object({
+      productId: z.string().min(1),
+      priceType: z.enum(['original', 'custom']),
+      customPrice: z.number().min(0).optional(),
+      quantity: z.number().int().min(1).default(1),
+      hasAccessories: z.boolean().default(false),
+      accessoriesDesc: z.string().optional(),
+      accessoriesCost: z.number().min(0).optional(),
+      notes: z.string().optional(),        // NEW
+    })
+    .superRefine((v, ctx) => {
+      if (v.priceType === 'custom' && (v.customPrice === undefined || v.customPrice === null))
+        ctx.addIssue({ code: 'custom', message: 'السعر المخصص مطلوب', path: ['customPrice'] });
+      if (v.hasAccessories && v.accessoriesCost === undefined)
+        ctx.addIssue({ code: 'custom', message: 'تكلفة الملحقات مطلوبة', path: ['accessoriesCost'] });
+    });
+
 async function buildRecord(input: z.infer<typeof recordInput>) {
   const product = await Product.findById(input.productId);
   if (!product) throw new ApiError(400, 'المنتج غير موجود');
@@ -53,48 +55,81 @@ async function buildRecord(input: z.infer<typeof recordInput>) {
     accessoriesCost: input.accessoriesCost,
     sellingPrice,
     profit,
+    notes: input.notes,        // NEW
   };
 }
 
 const createSchema = z.object({
   customerId: z.string().optional(),
+  walkIn: z.boolean().optional(),
   newCustomer: z
-    .object({
-      name: z.string().min(1),
-      phone: z.string().regex(/^\d{10}$/),
-      address: z.string().optional(),
-      age: z.number().int().min(0).optional(),
-      sex: z.enum(['male', 'female']).optional(),
-    })
-    .optional(),
+      .object({
+        name: z.string().min(1),
+        phone: z.string().regex(/^\d{10}$/, 'رقم الهاتف يجب أن يكون 10 أرقام').optional(), // #1 optional
+        address: z.string().optional(),
+        age: z.number().int().min(0).optional(),
+        sex: z.enum(['male', 'female']).optional(),
+      })
+      .optional(),
   records: z.array(recordInput).min(1, 'أضف منتجاً واحداً على الأقل'),
 });
+
 
 router.post('/admin/sale-files', requireAdmin, validate(createSchema), async (req, res, next) => {
   try {
     const body = req.body as z.infer<typeof createSchema>;
+    const records = await Promise.all(body.records.map(buildRecord));
+
+    // walk-in: no customer file
+    if (body.walkIn) {
+      const sf = await SaleFile.create({ records, origin: 'admin', walkIn: true });
+      return res.status(201).json(sf);
+    }
+
     let customerId = body.customerId;
     if (!customerId) {
       if (!body.newCustomer) throw new ApiError(400, 'مطلوب عميل');
-      const existing = await Customer.findOne({ phone: body.newCustomer.phone });
-      customerId = existing ? String(existing._id) : String((await Customer.create({ ...body.newCustomer, source: 'store' }))._id);
+      const or: any[] = [{ name: body.newCustomer.name.trim() }];
+      if (body.newCustomer.phone) or.push({ phone: body.newCustomer.phone });
+      const dupe = await Customer.findOne({ $or: or });
+      if (dupe) throw new ApiError(409, 'يوجد عميل بنفس الاسم أو رقم الهاتف. اختر "عميل موجود".');
+      const created = await Customer.create({ ...body.newCustomer, source: 'store' });
+      customerId = String(created._id);
     }
-    const records = await Promise.all(body.records.map(buildRecord));
-    const saleFile = await SaleFile.create({ customer: customerId, records, origin: 'admin' });
-    res.status(201).json(saleFile);
+
+    // NEW: one sale file per customer — if one exists, send the admin to it
+    const existingFile = await SaleFile.findOne({ customer: customerId });
+    if (existingFile) {
+      throw new ApiError(409, JSON.stringify({
+        message: 'يوجد ملف بيع لهذا العميل بالفعل. أضف العملية إلى نفس الملف.',
+        saleFileId: String(existingFile._id),
+      }));
+    }
+
+    const sf = await SaleFile.create({ customer: customerId, records, origin: 'admin' });
+    res.status(201).json(sf);
   } catch (e) {
     next(e);
   }
 });
 
+// #6 — list with search by customer name / phone
 router.get('/admin/sale-files', requireAdmin, async (req, res, next) => {
   try {
-    const { page = '1', limit = '20' } = req.query as any;
+    const { page = '1', limit = '20', search } = req.query as any;
     const p = Math.max(1, parseInt(page));
     const l = Math.min(100, parseInt(limit));
+
+    const q: any = {};
+    if (search && String(search).trim()) {
+      const rx = new RegExp(escapeRegex(String(search).trim()), 'i');
+      const custs = await Customer.find({ $or: [{ name: rx }, { phone: rx }] }).select('_id').lean();
+      q.customer = { $in: custs.map((c) => c._id) }; // walk-ins (no customer) are excluded from a name/phone search
+    }
+
     const [data, total] = await Promise.all([
-      SaleFile.find().populate('customer', 'name phone').sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).lean(),
-      SaleFile.countDocuments(),
+      SaleFile.find(q).populate('customer', 'name phone').sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).lean(),
+      SaleFile.countDocuments(q),
     ]);
     res.json({ data, page: p, limit: l, total });
   } catch (e) {
@@ -112,14 +147,23 @@ router.get('/admin/sale-files/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-// Append a record to an existing file (repeat customer — PRD rule 2).
 router.post('/admin/sale-files/:id/records', requireAdmin, validate(recordInput), async (req, res, next) => {
   try {
     const saleFile = await SaleFile.findById(req.params.id);
     if (!saleFile) throw new ApiError(404, 'الملف غير موجود');
     saleFile.records.push((await buildRecord(req.body)) as any);
-    await saleFile.save(); // pre-save recomputes totals
+    await saleFile.save();
     res.json(saleFile);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete('/admin/sale-files/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const doc = await SaleFile.findByIdAndDelete(req.params.id);
+    if (!doc) throw new ApiError(404, 'الملف غير موجود');
+    res.json({ ok: true });
   } catch (e) {
     next(e);
   }

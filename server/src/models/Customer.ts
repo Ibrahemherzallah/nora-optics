@@ -12,8 +12,7 @@ export interface CustomerDoc extends Document {
 const customerSchema = new Schema<CustomerDoc>(
   {
     name: { type: String, required: true, trim: true },
-    // unique index is what makes the upsert-based dedup race-safe (review #4)
-    phone: { type: String, required: true, unique: true, index: true, match: /^\d{10}$/ },
+    phone: { type: String, unique: true, sparse: true },  // sparse = allow many docs with no phone
     address: { type: String },
     age: { type: Number, min: 0 },
     sex: { type: String, enum: ['male', 'female'] },
