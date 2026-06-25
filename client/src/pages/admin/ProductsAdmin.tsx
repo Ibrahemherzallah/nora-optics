@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, X, Upload, Loader2 } from 'lucide-react';
-import { api } from '../../lib/api';
-import { Category } from '../../lib/types';
-import { shekel } from '../../lib/format';
-import { uploadImageToFirebase } from '../../lib/firebase';
+import { api } from '@/lib/api.ts';
+import { Category } from '@/lib/types.ts';
+import { shekel } from '@/lib/format.ts';
+import { uploadImageToFirebase } from '@/lib/firebase.ts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -22,6 +22,7 @@ interface ProductForm {
   size?: string;
   colors: ColorForm[];
   isSoldOut: boolean;
+  isDisappear: boolean;
 }
 
 const emptyForm: ProductForm = {
@@ -33,6 +34,7 @@ const emptyForm: ProductForm = {
   size: '',
   colors: [{ name: '', images: [] }],
   isSoldOut: false,
+  isDisappear: false,
 };
 
 export function ProductsAdmin() {
@@ -95,7 +97,10 @@ export function ProductsAdmin() {
                       <td className="p-3 text-right">
                         {p.isSoldOut ? (
                             <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-destructive">نفذت</span>
-                        ) : (
+                        ) : p.isDisappear ?
+                            (
+                                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-destructive">مخفي</span>
+                            ): (
                             <span className="rounded-full bg-lime/15 px-2 py-0.5 text-xs text-lime-hover">متوفر</span>
                         )}
                       </td>
@@ -114,6 +119,7 @@ export function ProductsAdmin() {
                                     size: p.size,
                                     colors: p.colors?.length ? p.colors : [{ name: '', images: [] }],
                                     isSoldOut: p.isSoldOut,
+                                    isDisappear: p.isDisappear
                                   })
                               }
                           >
@@ -335,6 +341,11 @@ function ProductModal({ form, categories, onClose }: { form: ProductForm; catego
             <div className="flex items-center gap-2">
               <Checkbox id="isSoldOut" checked={state.isSoldOut} onCheckedChange={(checked) => setState({ ...state, isSoldOut: checked })} />
               <Label htmlFor="isSoldOut">نفذت الكمية</Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox id="isDisappear" checked={state.isDisappear} onCheckedChange={(checked) => setState({ ...state, isDisappear: checked })} />
+              <Label htmlFor="isDisappear">إخفاء المنتج</Label>
             </div>
 
             {error && <div className="rounded-xl bg-red-50 p-3 text-sm text-destructive">{error}</div>}
