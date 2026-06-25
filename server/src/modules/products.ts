@@ -13,7 +13,7 @@ const router = Router();
 router.get('/products', async (req, res, next) => {
   try {
     const { category, search, inOffer, inStock, page = '1', limit = '12' } = req.query as any;
-    const q: any = {};
+    const q: any = { isDisappear: false }; // customers only see visible products
     if (category) q.category = category;
     if (inStock === 'true') q.isSoldOut = false;
     if (search) q.$or = [{ name: new RegExp(escapeRegex(search), 'i') }, { code: new RegExp(escapeRegex(search), 'i') }];
@@ -39,7 +39,8 @@ router.get('/products', async (req, res, next) => {
 router.get('/products/:id', async (req, res, next) => {
   try {
     const doc = await Product.findById(req.params.id).lean();
-    if (!doc) throw new ApiError(404, 'المنتج غير موجود');
+    // hidden products are treated as not found for the public (blocks direct links / guessed IDs)
+    if (!doc || doc.isDisappear === true) throw new ApiError(404, 'المنتج غير موجود');
     const offerIdx = await loadActiveOffers();
     res.json(serializeProductPublic(doc, offerIdx));
   } catch (e) {
@@ -50,7 +51,7 @@ router.get('/products/:id', async (req, res, next) => {
 router.get('/offers/products', async (_req, res, next) => {
   try {
     const offerIdx = await loadActiveOffers();
-    const docs = await Product.find({ isSoldOut: false }).lean();
+    const docs = await Product.find({ isSoldOut: false, isDisappear: false }).lean();
     const data = docs.map((d) => serializeProductPublic(d, offerIdx)).filter((d) => d.onOffer);
     res.json({ data });
   } catch (e) {
@@ -77,6 +78,7 @@ const productSchema = z.object({
   size: z.string().optional(),
   colors: z.array(colorSchema).min(1, 'مطلوب لون واحد على الأقل'),
   isSoldOut: z.boolean().optional(),
+  isDisappear: z.boolean().optional(), // customer-facing visibility toggle
   isInOffer: z.boolean().optional(),
 });
 
@@ -92,9 +94,10 @@ router.post('/admin/uploads', requireAdmin, upload.array('images', 10), async (r
 });
 
 router.get('/admin/products', requireAdmin, async (req, res, next) => {
+
   try {
     const { search, page = '1', limit = '20' } = req.query as any;
-    const q: any = {};
+    const q: any = {}; // admin sees ALL products, including hidden ones (needed for selling)
     if (search) q.$or = [{ name: new RegExp(escapeRegex(search), 'i') }, { code: new RegExp(escapeRegex(search), 'i') }];
     const p = Math.max(1, parseInt(page));
     const l = Math.min(100, parseInt(limit));
