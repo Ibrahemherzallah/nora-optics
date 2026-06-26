@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Eye, ShieldCheck, Truck, Sparkles, ChevronDown } from 'lucide-react';
-import { api } from '../../lib/api';
-import { Category, PublicProduct, Paginated } from '../../lib/types';
+import { api } from '@/lib/api.ts';
+import { Category, PublicProduct, Paginated } from '@/lib/types.ts';
 import { ProductCard } from '../../components/store/ProductCard';
-import { shekel } from '../../lib/format';
+import { shekel } from '@/lib/format.ts';
 
 const discountPct = (p: PublicProduct) =>
     p.originalPrice > 0 ? Math.round((1 - p.price / p.originalPrice) * 100) : 0;
