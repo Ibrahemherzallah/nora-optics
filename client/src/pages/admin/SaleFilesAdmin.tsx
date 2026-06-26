@@ -56,6 +56,7 @@ export function SaleFilesAdmin() {
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const qc = useQueryClient();
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/sale-files/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-sale-files'] }),

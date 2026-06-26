@@ -17,6 +17,7 @@ import { CategoriesAdmin } from './pages/admin/CategoriesAdmin';
 import { SaleFilesAdmin } from './pages/admin/SaleFilesAdmin';
 import { EyeExamsAdmin } from './pages/admin/EyeExamsAdmin';
 import { OffersAdmin } from './pages/admin/OffersAdmin';
+import { CustomersAdmin } from './pages/admin/CustomersAdmin';
 
 export default function App() {
   return (
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="sale-files" element={<SaleFilesAdmin />} />
         <Route path="eye-exams" element={<EyeExamsAdmin />} />
         <Route path="offers" element={<OffersAdmin />} />
+        <Route path="customers" element={<CustomersAdmin />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
