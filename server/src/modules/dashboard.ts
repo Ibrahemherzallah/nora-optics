@@ -16,7 +16,7 @@ router.get('/admin/dashboard', requireAdmin, async (_req, res, next) => {
     // new Date(year, month, day) uses LOCAL time, so no timezone offset issue.
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    console.log("startToday is : ", startToday)
+
     const sumSales = async (from: Date) => {
       const r = await SaleFile.aggregate([
         // only non-voided files
