@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, FolderTree, Receipt, Eye, Tag, ShoppingCart, LogOut } from 'lucide-react';
+import {LayoutDashboard, Package, FolderTree, Receipt, Eye, Tag, ShoppingCart, LogOut, Users} from 'lucide-react';
 import { Logo } from '../Logo';
 import { useAuth } from '../../store/auth';
 
@@ -9,8 +9,10 @@ const tabs = [
   { to: '/admin/categories', label: 'الأصناف', icon: FolderTree },
   { to: '/admin/sale-files', label: 'ملفات البيع', icon: Receipt },
   { to: '/admin/eye-exams', label: 'فحوصات النظر', icon: Eye },
+  { to: '/admin/customers', label: 'العملاء', icon: Users },
   { to: '/admin/offers', label: 'العروض', icon: Tag },
   { to: '/admin/orders', label: 'الطلبات', icon: ShoppingCart },
+
 ];
 
 export function AdminLayout() {

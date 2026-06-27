@@ -36,7 +36,7 @@ export function ProductDetail() {
     const [colorIdx, setColorIdx] = useState(0);
     const [imgIdx, setImgIdx] = useState(0);
     const [qty, setQty] = useState(1);
-
+    const contactWhatsapp = '+970595896992';
     const { data: p, isLoading, isError, error } = useQuery({
         queryKey: ['product', id],
         queryFn: async () => (await api.get<PublicProduct>(`/products/${id}`)).data,
@@ -44,10 +44,6 @@ export function ProductDetail() {
     const { data: cats } = useQuery({
         queryKey: ['categories'],
         queryFn: async () => (await api.get<{ data: Category[] }>('/categories')).data.data,
-    });
-    const { data: contact } = useQuery({
-        queryKey: ['contact'],
-        queryFn: async () => (await api.get<Contact>('/settings/contact')).data,
     });
 
     if (isLoading) return <div className="mx-auto max-w-6xl px-4 py-16 text-center text-muted">جارٍ التحميل…</div>;
@@ -59,7 +55,7 @@ export function ProductDetail() {
     const images = color?.images || [];
     const categoryName = cats?.find((c) => c._id === p.category)?.name;
 
-    const waNumber = toWaNumber(contact?.whatsapp || contact?.phones?.[0]);
+    const waNumber = toWaNumber(contactWhatsapp || '+970595896992');
     const waMessage = `مرحباً، أرغب بالاستفسار عن المنتج: ${p.name} (كود: ${p.code})`;
     const waLink = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}` : null;
 
@@ -111,9 +107,9 @@ export function ProductDetail() {
 
                     {/* Code + availability pills */}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="nums inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1 text-xs text-muted">
-              <Barcode size={14} /> {p.code}
-            </span>
+                        <span className="nums inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1 text-xs text-muted">
+                          <Barcode size={14} /> {p.code}
+                        </span>
                         {p.isSoldOut ? (
                             <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-destructive">نفذت الكمية</span>
                         ) : (

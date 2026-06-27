@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { MapPin, Phone, Clock, Instagram, Facebook } from 'lucide-react';
-import { api } from '../../lib/api';
+import { api } from '@/lib/api.ts';
 
 interface Contact {
   storeName: string;
@@ -9,6 +9,7 @@ interface Contact {
   whatsapp?: string;
   instagram?: string;
   facebook?: string;
+  tiktok?: string;
   mapEmbedUrl?: string;
   workingHours?: string;
 }
@@ -35,14 +36,21 @@ export function Contact() {
           )}
           <div className="flex gap-3 pt-2">
             {data?.instagram && (
-              <a href={data.instagram} className="rounded-xl border border-line p-3 hover:bg-surface" aria-label="إنستغرام">
-                <Instagram size={20} />
-              </a>
+                <a href={data.instagram} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-line p-3 hover:bg-surface" aria-label="إنستغرام">
+                  <Instagram size={20} />
+                </a>
             )}
             {data?.facebook && (
-              <a href={data.facebook} className="rounded-xl border border-line p-3 hover:bg-surface" aria-label="فيسبوك">
-                <Facebook size={20} />
-              </a>
+                <a href={data.facebook} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-line p-3 hover:bg-surface" aria-label="فيسبوك">
+                  <Facebook size={20} />
+                </a>
+            )}
+            {data?.tiktok && (
+                <a href={data.tiktok} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-line p-3 hover:bg-surface" aria-label="تيك توك">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.19 8.19 0 0 0 4.79 1.53V6.75a4.85 4.85 0 0 1-1.02-.06z"/>
+                  </svg>
+                </a>
             )}
           </div>
         </div>

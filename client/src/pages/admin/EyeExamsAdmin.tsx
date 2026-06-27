@@ -1,211 +1,480 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { Modal, ErrorBox, EmptyRow } from '../../components/admin/Modal';
 import { CustomerPicker, PickedCustomer } from '../../components/admin/CustomerPicker';
 
 type Side = { sph: string; cyl: string; axis: string; add: string; va: string };
+
 const emptySide = (): Side => ({ sph: '', cyl: '', axis: '', add: '', va: '' });
 
-const SOURCE_LABELS: Record<string, string> = { external: 'فحص خارجي', internal: 'فحص داخلي', old: 'فحص قديم' };
+const emptyRecord = () => ({
+  right: emptySide(),
+  left: emptySide(),
+  ipd: '',
+  source: 'external' as 'external' | 'internal' | 'old',
+  doctorName: '',
+  date: new Date().toISOString().slice(0, 10), // 'YYYY-MM-DD' for the date input
+});
+
+const SOURCE_LABELS: Record<string, string> = {
+  external: 'فحص خارجي',
+  internal: 'فحص داخلي',
+  old: 'فحص قديم',
+};
 
 export function EyeExamsAdmin() {
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-eye-exams'],
     queryFn: async () => (await api.get('/admin/eye-exams')).data.data,
   });
 
+  const del = useMutation({
+    mutationFn: (id: string) => api.delete(`/admin/eye-exams/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-eye-exams'] }),
+  });
+
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">فحوصات النظر</h1>
-        <button className="btn-primary" onClick={() => setOpen(true)}>
-          <Plus size={18} /> فحص جديد
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="py-12 text-center text-muted">جارٍ التحميل…</div>
-      ) : (
-        <div className="overflow-x-auto rounded-2xl border border-line bg-white">
-          <table className="w-full text-sm">
-            <thead className="border-b border-line bg-surface text-right text-muted">
-              <tr>
-                <th className="p-3 font-medium">الاسم</th>
-                <th className="p-3 font-medium">الهاتف</th>
-                <th className="p-3 font-medium">المصدر</th>
-                <th className="p-3 font-medium">الطبيب</th>
-                <th className="p-3 font-medium">التاريخ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.map((e: any) => (
-                <tr key={e._id} className="border-b border-line last:border-0">
-                  <td className="p-3 font-medium">{e.customer?.name || e.name || '—'}</td>
-                  <td className="nums p-3 text-muted">{e.customer?.phone || e.phone || '—'}</td>
-                  <td className="p-3">{SOURCE_LABELS[e.source]}</td>
-                  <td className="p-3 text-muted">{e.doctorName || '—'}</td>
-                  <td className="nums p-3 text-xs text-muted">{new Date(e.createdAt).toLocaleDateString('en-GB')}</td>
-                </tr>
-              ))}
-              {data?.length === 0 && <EmptyRow cols={5} text="لا توجد فحوصات بعد." />}
-            </tbody>
-          </table>
+      <div>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">فحوصات النظر</h1>
+          <button className="btn-primary" onClick={() => setOpen(true)}>
+            <Plus size={18} /> فحص جديد
+          </button>
         </div>
-      )}
 
-      {open && <ExamModal onClose={() => setOpen(false)} />}
-    </div>
+        {isLoading ? (
+            <div className="py-12 text-center text-muted">جارٍ التحميل…</div>
+        ) : (
+            <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+              <table className="w-full text-sm">
+                <thead className="border-b border-line bg-surface text-muted">
+                <tr>
+                  <th className="p-3 text-right font-medium">العميل</th>
+                  <th className="p-3 text-right font-medium">الهاتف</th>
+                  <th className="p-3 text-right font-medium">عدد الفحوصات</th>
+                  <th className="p-3 text-right font-medium">آخر فحص</th>
+                  <th className="w-24 p-3 font-medium">إجراءات</th>
+                </tr>
+                </thead>
+                <tbody>
+                {data?.map((e: any) => (
+                    <tr
+                        key={e._id}
+                        className="cursor-pointer border-b border-line last:border-0 hover:bg-surface"
+                        onClick={() => setOpenId(e._id)}
+                    >
+                      <td className="p-3 text-right font-medium">{e.customer?.name || '—'}</td>
+                      <td className="p-3 text-right text-muted">
+                        <span className="nums">{e.customer?.phone || '—'}</span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <span className="nums">{e.records?.length || 0}</span>
+                      </td>
+                      <td className="p-3 text-right text-muted">
+                    <span className="nums text-xs">
+                      {e.records?.length
+                          ? new Date(e.records[e.records.length - 1].createdAt).toLocaleDateString('en-GB')
+                          : '—'}
+                    </span>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex justify-start gap-1">
+                          <button
+                              className="rounded-lg p-2 hover:bg-surface"
+                              title="عرض / تعديل"
+                              onClick={(ev) => { ev.stopPropagation(); setOpenId(e._id); }}
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                              className="rounded-lg p-2 text-destructive hover:bg-red-50"
+                              title="حذف"
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                if (confirm(`حذف ملف فحوصات "${e.customer?.name}"؟`)) del.mutate(e._id);
+                              }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                ))}
+                {data?.length === 0 && <EmptyRow cols={5} text="لا توجد فحوصات بعد." />}
+                </tbody>
+              </table>
+            </div>
+        )}
+
+        {open && (
+            <ExamModal
+                onClose={() => setOpen(false)}
+                onExistingExam={(id) => { setOpen(false); setOpenId(id); }}
+            />
+        )}
+        {openId && <ExamDetail id={openId} onClose={() => setOpenId(null)} />}
+      </div>
   );
 }
 
-function ExamModal({ onClose }: { onClose: () => void }) {
+// ---------- Create modal ----------
+function ExamModal({ onClose, onExistingExam }: { onClose: () => void; onExistingExam: (id: string) => void }) {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [linkMode, setLinkMode] = useState<'new' | 'existing'>('new');
+  const [existingExamId, setExistingExamId] = useState<string | null>(null);
+  const [linkMode, setLinkMode] = useState<'new' | 'existing'>('existing');
   const [customer, setCustomer] = useState<PickedCustomer | null>(null);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [age, setAge] = useState('');
-  const [address, setAddress] = useState('');
-  const [right, setRight] = useState<Side>(emptySide());
-  const [left, setLeft] = useState<Side>(emptySide());
-  const [ipd, setIpd] = useState('');
-  const [source, setSource] = useState<'external' | 'internal' | 'old'>('external');
-  const [doctorName, setDoctorName] = useState('');
+  const [nc, setNc] = useState({ name: '', phone: '', age: '', address: '' });
+  const [rec, setRec] = useState(emptyRecord());
 
-  const needsDoctor = source === 'external' || source === 'internal';
+  const needsDoctor = rec.source === 'external' || rec.source === 'internal';
+
+  const phoneOk = nc.phone === '' || /^\d{10}$/.test(nc.phone);
+  const canSave = rec.source && (!needsDoctor || rec.doctorName.trim()) && (linkMode === 'existing' ? !!customer : nc.name.trim().length > 0 && phoneOk);
 
   const save = useMutation({
     mutationFn: () => {
-      const payload: any = { right, left, ipd: ipd || undefined, source };
-      if (needsDoctor) payload.doctorName = doctorName;
-      if (linkMode === 'existing' && customer) payload.customer = customer._id;
-      else {
-        payload.name = name;
-        payload.phone = phone || undefined;
-        payload.age = age ? Number(age) : undefined;
-        payload.address = address || undefined;
-      }
+      const payload: any = {
+        record: {
+          right: rec.right,
+          left: rec.left,
+          ipd: rec.ipd || undefined,
+          source: rec.source,
+          doctorName: needsDoctor ? rec.doctorName : undefined,
+          date: rec.date || undefined,   // ← add this
+        },
+      };
+      if (linkMode === 'existing' && customer) payload.customerId = customer._id;
+      else payload.newCustomer = {
+        name: nc.name,
+        phone: nc.phone || undefined,
+        age: nc.age ? Number(nc.age) : undefined,
+        address: nc.address || undefined,
+      };
       return api.post('/admin/eye-exams', payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-eye-exams'] });
       onClose();
     },
-    onError: (e) => setError((e as Error).message),
+    onError: (e: any) => {
+      const raw = (e as Error).message;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.examId) { setExistingExamId(parsed.examId); setError(parsed.message); return; }
+      } catch { /* not structured */ }
+      setError(raw);
+    },
   });
 
   return (
-    <Modal title="فحص نظر جديد" onClose={onClose} maxWidth="max-w-3xl">
-      <div className="space-y-5">
-        {/* Customer linkage */}
-        <div>
-          <div className="mb-2 flex gap-2">
-            <button onClick={() => setLinkMode('new')} className={tab(linkMode === 'new')}>
-              عميل جديد / بدون ربط
-            </button>
-            <button onClick={() => setLinkMode('existing')} className={tab(linkMode === 'existing')}>
-              ربط عميل موجود
+      <Modal title="فحص نظر جديد" onClose={onClose} maxWidth="max-w-3xl">
+        <div className="space-y-5">
+          {/* Customer */}
+          <div>
+            <div className="mb-2 flex gap-2">
+              <button onClick={() => setLinkMode('existing')} className={tab(linkMode === 'existing')}>ربط عميل موجود</button>
+              <button onClick={() => setLinkMode('new')} className={tab(linkMode === 'new')}>عميل جديد</button>
+            </div>
+            {linkMode === 'existing' ? (
+                <CustomerPicker value={customer} onPick={setCustomer} />
+            ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">الاسم *</label>
+                    <input className="input" value={nc.name} onChange={(e) => setNc({ ...nc, name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label">الهاتف (اختياري)</label>
+                    <input
+                        className={`input nums ${!phoneOk ? 'border-destructive' : ''}`}
+                        inputMode="numeric"
+                        placeholder="05XXXXXXXX"
+                        value={nc.phone}
+                        onChange={(e) => setNc({ ...nc, phone: e.target.value })}
+                    />
+                    {!phoneOk && <p className="mt-1 text-xs text-destructive">رقم الهاتف يجب أن يكون 10 أرقام</p>}
+                  </div>
+                  <div>
+                    <label className="label">العمر</label>
+                    <input className="input nums" type="number" value={nc.age} onChange={(e) => setNc({ ...nc, age: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label">العنوان</label>
+                    <input className="input" value={nc.address} onChange={(e) => setNc({ ...nc, address: e.target.value })} />
+                  </div>
+                </div>
+            )}
+          </div>
+
+          {/* Prescription */}
+          <PrescriptionForm rec={rec} onChange={setRec} />
+
+          {existingExamId ? (
+              <div className="rounded-xl bg-amber-50 p-3 text-sm">
+                <p className="font-medium text-amber-800">يوجد ملف فحوصات لهذا العميل بالفعل.</p>
+                <button className="btn-primary mt-2" onClick={() => onExistingExam(existingExamId)}>
+                  فتح ملف الفحوصات وإضافة فحص جديد
+                </button>
+              </div>
+          ) : (
+              <ErrorBox message={error} />
+          )}
+
+          <div className="flex justify-end gap-2">
+            <button className="btn-ghost" onClick={onClose}>إلغاء</button>
+            <button className="btn-primary" disabled={!canSave || save.isPending} onClick={() => save.mutate()}>
+              {save.isPending ? 'جارٍ الحفظ…' : 'حفظ الفحص'}
             </button>
           </div>
-          {linkMode === 'existing' ? (
-            <CustomerPicker value={customer} onPick={setCustomer} />
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">الاسم *</label>
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+      </Modal>
+  );
+}
+
+// ---------- Detail modal (shows all records + append) ----------
+function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [adding, setAdding] = useState(false);
+  const [rec, setRec] = useState(emptyRecord());
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: exam, isLoading } = useQuery({
+    queryKey: ['admin-eye-exam', id],
+    queryFn: async () => (await api.get(`/admin/eye-exams/${id}`)).data,
+  });
+
+  const append = useMutation({
+    mutationFn: () =>
+        api.post(`/admin/eye-exams/${id}/records`, {
+          right: rec.right,
+          left: rec.left,
+          ipd: rec.ipd || undefined,
+          source: rec.source,
+          doctorName: rec.source !== 'old' ? rec.doctorName : undefined,
+          date: rec.date || undefined,   // ← add this
+        }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-eye-exam', id] });
+      qc.invalidateQueries({ queryKey: ['admin-eye-exams'] });
+      setAdding(false);
+      setRec(emptyRecord());
+    },
+    onError: (e) => setError((e as Error).message),
+  });
+
+  const needsDoctor = rec.source === 'external' || rec.source === 'internal';
+
+  return (
+      <Modal title="ملف فحوصات النظر" onClose={onClose} maxWidth="max-w-3xl">
+        {isLoading || !exam ? (
+            <div className="py-8 text-center text-muted">جارٍ التحميل…</div>
+        ) : (
+            <div className="space-y-4">
+              {/* Customer card */}
+              <div className="rounded-xl bg-surface p-3 text-sm">
+                <div className="font-semibold">{exam.customer?.name}</div>
+                {exam.customer?.phone && <div className="nums text-muted">{exam.customer.phone}</div>}
               </div>
-              <div>
-                <label className="label">الهاتف *</label>
-                <input className="input nums" inputMode="numeric" placeholder="05XXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} />
+
+              {/* Records list — newest first */}
+              <div className="space-y-3">
+                {[...exam.records].reverse().map((r: any, i: number) => (
+                    <div key={r._id || i} className="rounded-xl border border-line p-3">
+                      <div className="mb-2 flex items-center justify-between text-xs text-muted">
+                        <span>{SOURCE_LABELS[r.source]}{r.doctorName ? ` · ${r.doctorName}` : ''}</span>
+                        <span className="nums">
+                          {new Date(r.date ?? r.createdAt).toLocaleDateString('en-GB')}
+                        </span>
+                      </div>
+                      <PrescriptionTable right={r.right} left={r.left} ipd={r.ipd} />
+                    </div>
+                ))}
+                {exam.records.length === 0 && (
+                    <div className="py-6 text-center text-sm text-muted">لا توجد قياسات بعد.</div>
+                )}
               </div>
-              <div>
-                <label className="label">العمر</label>
-                <input className="input nums" type="number" value={age} onChange={(e) => setAge(e.target.value)} />
-              </div>
-              <div>
-                <label className="label">العنوان</label>
-                <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} />
+
+              {/* Append section */}
+              <div className="border-t border-line pt-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-muted">إضافة فحص جديد</h4>
+                  {!adding && (
+                      <button className="btn-primary" onClick={() => setAdding(true)}>
+                        <Plus size={16} /> إضافة
+                      </button>
+                  )}
+                </div>
+                {adding && (
+                    <div className="space-y-4">
+                      <PrescriptionForm rec={rec} onChange={setRec} />
+                      <ErrorBox message={error} />
+                      <div className="flex justify-end gap-2">
+                        <button className="btn-ghost" onClick={() => { setAdding(false); setRec(emptyRecord()); }}>إلغاء</button>
+                        <button
+                            className="btn-primary"
+                            disabled={append.isPending || (needsDoctor && !rec.doctorName.trim())}
+                            onClick={() => append.mutate()}
+                        >
+                          {append.isPending ? 'جارٍ الحفظ…' : 'حفظ الفحص'}
+                        </button>
+                      </div>
+                    </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
+        )}
+      </Modal>
+  );
+}
 
-        {/* Prescription table */}
-        <div>
-          <label className="label">القياسات</label>
-          <div className="overflow-x-auto rounded-xl border border-line">
-            <table className="w-full text-center text-sm">
-              <thead className="bg-surface text-muted">
-                <tr>
-                  <th className="p-2"></th>
-                  <th className="p-2 font-medium">Sph</th>
-                  <th className="p-2 font-medium">Cyl</th>
-                  <th className="p-2 font-medium">Axis</th>
-                  <th className="p-2 font-medium">Add</th>
-                  <th className="p-2 font-medium">V.A.</th>
-                </tr>
-              </thead>
-              <tbody>
-                <SideRow label="العين اليمنى (R)" side={right} onChange={setRight} />
-                <SideRow label="العين اليسرى (L)" side={left} onChange={setLeft} />
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-3 max-w-[200px]">
-            <label className="label">I.P.D</label>
-            <input className="input nums" value={ipd} onChange={(e) => setIpd(e.target.value)} placeholder="مثال: 62" />
-          </div>
-        </div>
+// ---------- Shared: prescription form (for create + append) ----------
+type RecState = ReturnType<typeof emptyRecord>;
 
-        {/* Source + doctor */}
+function PrescriptionForm({ rec, onChange }: { rec: RecState; onChange: (r: RecState) => void }) {
+  const needsDoctor = rec.source === 'external' || rec.source === 'internal';
+  return (
+      <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">المصدر *</label>
-            <select className="input" value={source} onChange={(e) => setSource(e.target.value as any)}>
+            <select className="input" value={rec.source} onChange={(e) => onChange({ ...rec, source: e.target.value as any })}>
               <option value="external">فحص خارجي</option>
               <option value="internal">فحص داخلي</option>
               <option value="old">فحص قديم</option>
             </select>
           </div>
           {needsDoctor && (
-            <div>
-              <label className="label">اسم الطبيب *</label>
-              <input className="input" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} />
-            </div>
+              <div>
+                <label className="label">اسم الطبيب *</label>
+                <input className="input" value={rec.doctorName} onChange={(e) => onChange({ ...rec, doctorName: e.target.value })} />
+              </div>
           )}
         </div>
-
-        <ErrorBox message={error} />
-        <div className="flex justify-end gap-2">
-          <button className="btn-ghost" onClick={onClose}>
-            إلغاء
-          </button>
-          <button className="btn-primary" disabled={save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? 'جارٍ الحفظ…' : 'حفظ الفحص'}
-          </button>
+        <div className="max-w-[220px]">
+          <label className="label">تاريخ الفحص</label>
+          <input
+              type="date"
+              className="input nums"
+              value={rec.date}
+              max={new Date().toISOString().slice(0, 10)}   // can't pick a future date
+              onChange={(e) => onChange({ ...rec, date: e.target.value })}
+          />
+          {rec.date !== new Date().toISOString().slice(0, 10) && (
+              <button
+                  className="mt-1 text-xs text-lime-hover hover:underline"
+                  onClick={() => onChange({ ...rec, date: new Date().toISOString().slice(0, 10) })}
+              >
+                استخدام تاريخ اليوم
+              </button>
+          )}
+        </div>
+        <label className="label">القياسات</label>
+        <div className="overflow-x-auto rounded-xl border border-line">
+          <table className="w-full text-center text-sm">
+            <thead className="bg-surface text-muted">
+            <tr>
+              <th className="p-2"></th>
+              <th className="p-2 font-medium">Sph</th>
+              <th className="p-2 font-medium">Cyl</th>
+              <th className="p-2 font-medium">Axis</th>
+              <th className="p-2 font-medium">Add</th>
+              <th className="p-2 font-medium">V.A.</th>
+            </tr>
+            </thead>
+            <tbody>
+            <SideRow
+                label="العين اليمنى (R)"
+                side={rec.right}
+                onChange={(s) => onChange({ ...rec, right: s })}
+            />
+            <SideRow
+                label="العين اليسرى (L)"
+                side={rec.left}
+                onChange={(s) => onChange({ ...rec, left: s })}
+            />
+            </tbody>
+          </table>
+        </div>
+        <div className="max-w-[200px]">
+          <label className="label">I.P.D</label>
+          <input className="input nums" value={rec.ipd} onChange={(e) => onChange({ ...rec, ipd: e.target.value })} placeholder="مثال: 62" />
         </div>
       </div>
-    </Modal>
+  );
+}
+
+// ---------- Shared: read-only prescription table (for detail view) ----------
+function PrescriptionTable({ right, left, ipd }: { right: any; left: any; ipd?: string }) {
+  const keys: Array<{ key: string; label: string }> = [
+    { key: 'sph', label: 'Sph' },
+    { key: 'cyl', label: 'Cyl' },
+    { key: 'axis', label: 'Axis' },
+    { key: 'add', label: 'Add' },
+    { key: 'va', label: 'V.A' },
+  ];
+
+  const val = (v: string | undefined) => (v && v.trim() ? v : '—');
+
+  const Row = ({ label, side }: { label: string; side: any }) => (
+      <tr className="border-t border-line">
+        <td className="whitespace-nowrap p-2 text-right text-xs font-medium">{label}</td>
+        {keys.map(({ key }) => (
+            <td key={key} className="p-2 text-center text-sm">
+              <span className="nums">{val(side?.[key])}</span>
+            </td>
+        ))}
+      </tr>
+  );
+
+  return (
+      <div>
+        <div className="overflow-x-auto rounded-xl border border-line">
+          <table className="w-full text-sm" style={{ direction: 'ltr' }}>
+            <thead className="bg-surface text-muted">
+            <tr>
+              <th className="p-2 text-right"></th>
+              {keys.map(({ label }) => (
+                  <th key={label} className="p-2 font-medium text-center">{label}</th>
+              ))}
+            </tr>
+            </thead>
+            <tbody>
+            <Row label="اليمنى (R)" side={right} />
+            <Row label="اليسرى (L)" side={left} />
+            </tbody>
+          </table>
+        </div>
+        {ipd && (
+            <p className="mt-1 text-right text-xs text-muted">
+              I.P.D: <span className="nums">{ipd}</span>
+            </p>
+        )}
+      </div>
   );
 }
 
 function SideRow({ label, side, onChange }: { label: string; side: Side; onChange: (s: Side) => void }) {
   const keys: (keyof Side)[] = ['sph', 'cyl', 'axis', 'add', 'va'];
   return (
-    <tr className="border-t border-line">
-      <td className="whitespace-nowrap p-2 text-right font-medium">{label}</td>
-      {keys.map((k) => (
-        <td key={k} className="p-1.5">
-          <input className="input nums px-2 py-1.5 text-center" value={side[k]} onChange={(e) => onChange({ ...side, [k]: e.target.value })} />
-        </td>
-      ))}
-    </tr>
+      <tr className="border-t border-line">
+        <td className="whitespace-nowrap p-2 text-right font-medium">{label}</td>
+        {keys.map((k) => (
+            <td key={k} className="p-1.5">
+              <input
+                  className="input nums px-2 py-1.5 text-center"
+                  value={side[k]}
+                  onChange={(e) => onChange({ ...side, [k]: e.target.value })}
+              />
+            </td>
+        ))}
+      </tr>
   );
 }
 

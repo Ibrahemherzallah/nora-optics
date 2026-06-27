@@ -24,7 +24,15 @@ export function Dashboard() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">لوحة المعلومات</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">لوحة المعلومات</h1>
+        <Link
+            to="/"
+            className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2 text-sm font-medium transition hover:bg-surface"
+        >
+          ← العودة للمتجر
+        </Link>
+      </div>
 
       {/* Primary stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
