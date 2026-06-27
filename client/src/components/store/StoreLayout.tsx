@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Logo } from '../Logo';
 import { useCart } from '@/store/cart.ts';
 import { CartDrawer } from './CartDrawer';
+import { useAuth } from '@/store/auth.ts';
 
 const navLinks = [
   { to: '/', label: 'الرئيسية' },
@@ -15,6 +16,7 @@ const navLinks = [
 /* Scroll to top on every navigation */
 function ScrollToTop() {
   const { pathname } = useLocation();
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [pathname]);
@@ -25,6 +27,7 @@ export function StoreLayout() {
   const count = useCart((s) => s.count());
   const openCart = useCart((s) => s.open);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { token } = useAuth();
 
   return (
       <div className="flex min-h-screen flex-col">
@@ -118,7 +121,7 @@ export function StoreLayout() {
             <div>
               <h4 className="mb-3 text-lime">تواصل</h4>
               <p className="text-sm text-white/80">جنين، فلسطين</p>
-              <Link to="/admin/login" className="mt-4 inline-block text-xs text-white/40 hover:text-lime">
+              <Link to={token ? '/admin/dashboard' : '/admin/login'} className="mt-4 inline-block text-xs text-white/40 hover:text-lime">
                 لوحة التحكم
               </Link>
             </div>

@@ -17,6 +17,7 @@ router.get('/products', async (req, res, next) => {
     if (category) q.category = category;
     if (inStock === 'true') q.isSoldOut = false;
     if (search) q.$or = [{ name: new RegExp(escapeRegex(search), 'i') }, { code: new RegExp(escapeRegex(search), 'i') }];
+    if (req.query.featured === 'true') q.isFeatured = true;  // ← add this
 
     const p = Math.max(1, parseInt(page));
     const l = Math.min(48, parseInt(limit));
@@ -80,6 +81,7 @@ const productSchema = z.object({
   isSoldOut: z.boolean().optional(),
   isDisappear: z.boolean().optional(), // customer-facing visibility toggle
   isInOffer: z.boolean().optional(),
+  isFeatured: z.boolean().optional(),
 });
 
 router.post('/admin/uploads', requireAdmin, upload.array('images', 10), async (req, res, next) => {

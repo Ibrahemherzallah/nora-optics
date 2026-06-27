@@ -17,6 +17,7 @@ export interface ProductDoc extends Document {
   isInOffer: boolean; // display hint only — never authoritative for pricing
   isDeleted: boolean;
   isDisappear: boolean;
+  isFeatured: boolean;
 }
 
 const colorSchema = new Schema<ProductColor>(
@@ -39,6 +40,7 @@ const productSchema = new Schema<ProductDoc>(
       type: [colorSchema],
       validate: { validator: (v: ProductColor[]) => v.length >= 1, message: 'At least one color is required' },
     },
+    isFeatured: { type: Boolean, default: false },
     isSoldOut: { type: Boolean, default: false },
     isInOffer: { type: Boolean, default: false },
     isDeleted: { type: Boolean, default: false, index: true },

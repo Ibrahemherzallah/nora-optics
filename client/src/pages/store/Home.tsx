@@ -52,7 +52,8 @@ export function Home() {
   });
   const { data: products } = useQuery({
     queryKey: ['products', 'featured'],
-    queryFn: async () => (await api.get<Paginated<PublicProduct>>('/products?limit=8')).data.data,
+    queryFn: async () =>
+        (await api.get<Paginated<PublicProduct>>('/products?featured=true&limit=8')).data.data,
   });
   const { data: offersRaw } = useQuery({
     queryKey: ['offers', 'home'],
@@ -190,23 +191,24 @@ export function Home() {
         )}
 
         {/* ============ FEATURED PRODUCTS ============ */}
-        <section className="mx-auto max-w-6xl px-4 py-20">
-          <Reveal className="mb-8 flex items-end justify-between">
-            <div>
-              <span className="text-sm font-semibold uppercase tracking-[0.2em] text-lime-hover">الأحدث</span>
-              <h2 className="mt-2 text-3xl font-extrabold md:text-4xl">أحدث المنتجات</h2>
-            </div>
-            <Link to="/products" className="text-sm font-medium text-lime-hover hover:underline">عرض الكل ←</Link>
-          </Reveal>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {products?.map((pr, i) => (
-                <Reveal key={pr.id} delay={(i % 4) * 80}>
-                  <ProductCard p={pr} />
-                </Reveal>
-            ))}
-          </div>
-        </section>
-
+        {!!products?.length && (
+            <section className="mx-auto max-w-6xl px-4 py-20">
+              <Reveal className="mb-8 flex items-end justify-between">
+                <div>
+                  <span className="text-sm font-semibold uppercase tracking-[0.2em] text-lime-hover">مختارة بعناية</span>
+                  <h2 className="mt-2 text-3xl font-extrabold md:text-4xl">منتجات مميزة</h2>
+                </div>
+                <Link to="/products" className="text-sm font-medium text-lime-hover hover:underline">عرض الكل ←</Link>
+              </Reveal>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                {products.map((pr, i) => (
+                    <Reveal key={pr.id} delay={(i % 4) * 80}>
+                      <ProductCard p={pr} />
+                    </Reveal>
+                ))}
+              </div>
+            </section>
+        )}
         {/* ============ VALUE BAND ============ */}
         <section className="bg-charcoal text-charcoal-fg">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 md:grid-cols-3">
