@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, X, Upload, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Upload, Loader2, Star } from 'lucide-react';
 import { api } from '@/lib/api.ts';
 import { Category } from '@/lib/types.ts';
 import { shekel } from '@/lib/format.ts';
@@ -50,12 +50,15 @@ export function ProductsAdmin() {
     queryKey: ['admin-categories'],
     queryFn: async () => (await api.get<{ data: Category[] }>('/admin/categories')).data.data,
   });
-
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/products/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-products'] }),
   });
-
+  const toggleFeatured = useMutation({
+    mutationFn: ({ id, isFeatured }: { id: string; isFeatured: boolean }) =>
+        api.put(`/admin/products/${id}`, { isFeatured }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-products'] }),
+  });
   return (
       <div>
         <div className="mb-6 flex items-center justify-between gap-3">
@@ -95,36 +98,48 @@ export function ProductsAdmin() {
                       <td className="p-3 text-right"><span className="nums">{shekel(p.price)}</span></td>
                       <td className="p-3 text-right text-muted"><span className="nums">{shekel(p.cost)}</span></td>
                       <td className="p-3 text-right">
-                        {p.isSoldOut ? (
-                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-destructive">نفذت</span>
-                        ) : p.isDisappear ?
-                            (
-                                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-destructive">مخفي</span>
-                            ): (
-                            <span className="rounded-full bg-lime/15 px-2 py-0.5 text-xs text-lime-hover">متوفر</span>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {p.isFeatured && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">★ مميز</span>
+                          )}
+                          {p.isSoldOut ? (
+                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-destructive">نفذت</span>
+                          ) : p.isDisappear ? (
+                              <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-muted">مخفي</span>
+                          ) : (
+                              <span className="rounded-full bg-lime/15 px-2 py-0.5 text-xs text-lime-hover">متوفر</span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3">
                         <div className="flex justify-start gap-1">
+                          {/* Featured toggle */}
+                          <button
+                              title={p.isFeatured ? 'إزالة من المميزة' : 'إضافة للمميزة'}
+                              className={`rounded-lg p-2 transition ${p.isFeatured ? 'text-amber-400 hover:bg-amber-50' : 'text-muted hover:bg-surface'}`}
+                              onClick={() => toggleFeatured.mutate({ id: p._id, isFeatured: !p.isFeatured })}
+                          >
+                            <Star size={16} className={p.isFeatured ? 'fill-amber-400' : ''} />
+                          </button>
+
                           <button
                               className="rounded-lg p-2 hover:bg-surface"
-                              onClick={() =>
-                                  setEditing({
-                                    _id: p._id,
-                                    name: p.name,
-                                    code: p.code,
-                                    category: typeof p.category === 'object' ? p.category._id : p.category,
-                                    price: p.price,
-                                    cost: p.cost,
-                                    size: p.size,
-                                    colors: p.colors?.length ? p.colors : [{ name: '', images: [] }],
-                                    isSoldOut: p.isSoldOut,
-                                    isDisappear: p.isDisappear
-                                  })
-                              }
+                              onClick={() => setEditing({
+                                _id: p._id,
+                                name: p.name,
+                                code: p.code,
+                                category: typeof p.category === 'object' ? p.category._id : p.category,
+                                price: p.price,
+                                cost: p.cost,
+                                size: p.size,
+                                colors: p.colors?.length ? p.colors : [{ name: '', images: [] }],
+                                isSoldOut: p.isSoldOut,
+                                isDisappear: p.isDisappear,
+                              })}
                           >
                             <Pencil size={16} />
                           </button>
+
                           <button
                               className="rounded-lg p-2 text-destructive hover:bg-red-50"
                               onClick={() => confirm(`حذف "${p.name}"؟`) && del.mutate(p._id)}
