@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { TrendingUp, Wallet, ShoppingCart, Package, Users, Tag } from 'lucide-react';
-import { api } from '../../lib/api';
-import { shekel, STATUS_LABELS, STATUS_COLORS } from '../../lib/format';
+import { api } from '@/lib/api.ts';
+import { shekel, STATUS_LABELS, STATUS_COLORS } from '@/lib/format.ts';
+import {useState} from "react";
 
 interface Dashboard {
   today: { sales: number; profit: number; count: number };
@@ -13,10 +14,27 @@ interface Dashboard {
 }
 
 export function Dashboard() {
+  const [exporting, setExporting] = useState(false);
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['dashboard'],
     queryFn: async () => (await api.get<Dashboard>('/admin/dashboard')).data,
   });
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await api.get('/admin/export', { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nora-export-${new Date().toISOString().slice(0,10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (isLoading) return <div className="py-16 text-center text-muted">جارٍ التحميل…</div>;
   if (isError) return <div className="rounded-xl bg-red-50 p-6 text-center text-destructive">{(error as Error).message}</div>;
@@ -109,6 +127,9 @@ export function Dashboard() {
             <MiniCard icon={<Users size={18} />} value={data.counts.customers} label="عميل" />
             <MiniCard icon={<Tag size={18} />} value={data.counts.activeOffers} label="عرض فعّال" to="/admin/offers" />
           </div>
+          <button className="btn-primary" disabled={exporting} onClick={handleExport}>
+            {exporting ? 'جارٍ التصدير…' : '⬇ تصدير Excel'}
+          </button>
         </div>
       </div>
     </div>
