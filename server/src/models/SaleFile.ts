@@ -16,6 +16,7 @@ export interface SaleRecord {
   sellingPrice: number; // unit selling price = customPrice ?? originalPrice
   profit: number; // (sellingPrice - cost) * quantity - (accessoriesCost || 0)
   notes?: string;
+  date: Date;
   createdAt: Date;
 }
 
@@ -49,6 +50,7 @@ const recordSchema = new Schema<SaleRecord>(
     sellingPrice: { type: Number, required: true, min: 0 },
     profit: { type: Number, required: true },
     notes: { type: String },        // NEW
+    date: { type: Date, default: Date.now },
     createdAt: { type: Date, default: Date.now },
   },
   { _id: true }

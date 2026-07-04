@@ -126,13 +126,17 @@ async function createWithTransaction(data: any, items: any[], records: any[], su
   try {
     let order: any;
     await session.withTransaction(async () => {
-      const customer = await resolveCustomer(data, session);
       const orderNumber = await buildOrderNumber(session);
-      const [saleFile] = await SaleFile.create([{ customer: customer._id, records, origin: 'online' }], { session });
+
+      // Online orders: create a standalone sale file with NO customer link
+      // Don't look up or create a customer — avoid merging with existing sale files
+      const [saleFile] = await SaleFile.create(
+          [{ records, origin: 'online', walkIn: true }], // walkIn=true = no customer ref
+          { session }
+      );
+
       const [created] = await Order.create(
-        [
-          {
-            customer: customer._id,
+          [{
             customerName: data.customerName,
             phone: data.phone,
             address: data.address,
@@ -145,10 +149,10 @@ async function createWithTransaction(data: any, items: any[], records: any[], su
             total,
             saleFile: saleFile._id,
             orderNumber,
-          },
-        ],
-        { session }
+          }],
+          { session }
       );
+
       saleFile.order = created._id as any;
       await saleFile.save({ session });
       order = created;
@@ -160,14 +164,12 @@ async function createWithTransaction(data: any, items: any[], records: any[], su
 }
 
 async function createWithCleanup(data: any, items: any[], records: any[], subtotal: number, deliveryFee: number, total: number) {
-  // Standalone Mongo fallback. Create SaleFile first, then Order, then back-ref; clean up on failure.
-  const customer = await resolveCustomer(data);
   let saleFile: any;
   try {
-    saleFile = await SaleFile.create({ customer: customer._id, records, origin: 'online' });
+    // Same — no customer lookup, standalone sale file
+    saleFile = await SaleFile.create({ records, origin: 'online', walkIn: true });
     const orderNumber = await buildOrderNumber();
     const order = await Order.create({
-      customer: customer._id,
       customerName: data.customerName,
       phone: data.phone,
       address: data.address,
@@ -239,6 +241,18 @@ router.patch('/admin/orders/:id/status', requireAdmin, validate(statusSchema), a
     order.status = newStatus;
     await order.save();
     res.json(order);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete('/admin/orders/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const doc = await Order.findByIdAndDelete(req.params.id);
+    if (!doc) throw new ApiError(404, 'الطلب غير موجود');
+    // also delete the linked sale file if it exists
+    if (doc.saleFile) await SaleFile.findByIdAndDelete(doc.saleFile);
+    res.json({ ok: true });
   } catch (e) {
     next(e);
   }

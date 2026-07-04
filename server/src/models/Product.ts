@@ -8,7 +8,7 @@ export interface ProductColor {
 export interface ProductDoc extends Document {
   name: string;
   code: string;
-  category: Types.ObjectId;
+  categories: Types.ObjectId[];
   price: number;
   cost: number; // ADMIN ONLY — stripped by public serializer
   size?: string;
@@ -21,24 +21,28 @@ export interface ProductDoc extends Document {
 }
 
 const colorSchema = new Schema<ProductColor>(
-  {
-    name: { type: String, required: true },
-    images: { type: [String], default: [] },
-  },
-  { _id: false }
+    {
+        name: { type: String, default: '' },  // was: required: true
+        images: { type: [String], default: [] },
+    },
+    { _id: false }
 );
 
 const productSchema = new Schema<ProductDoc>(
   {
     name: { type: String, required: true, trim: true },
     code: { type: String, required: true, unique: true, index: true, trim: true },
-    category: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
+    categories: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Category',
+        required: true,
+    }],
     price: { type: Number, required: true, min: 0 },
     cost: { type: Number, required: true, min: 0 },
     size: { type: String },
     colors: {
-      type: [colorSchema],
-      validate: { validator: (v: ProductColor[]) => v.length >= 1, message: 'At least one color is required' },
+        type: [colorSchema],
+        default: [],
     },
     isFeatured: { type: Boolean, default: false },
     isSoldOut: { type: Boolean, default: false },
