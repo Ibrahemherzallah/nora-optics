@@ -14,7 +14,7 @@ router.get('/products', async (req, res, next) => {
   try {
     const { category, search, inOffer, inStock, page = '1', limit = '12' } = req.query as any;
     const q: any = { isDisappear: false }; // customers only see visible products
-    if (category) q.category = category;
+    if (category) q.categories = category;
     if (inStock === 'true') q.isSoldOut = false;
     if (search) q.$or = [{ name: new RegExp(escapeRegex(search), 'i') }, { code: new RegExp(escapeRegex(search), 'i') }];
     if (req.query.featured === 'true') q.isFeatured = true;  // ← add this
@@ -69,15 +69,18 @@ router.get('/categories', async (_req, res, next) => {
 });
 
 // ---------- ADMIN ----------
-const colorSchema = z.object({ name: z.string().min(1), images: z.array(z.string()).min(1, 'كل لون يحتاج صورة واحدة على الأقل') });
+const colorSchema = z.object({
+  name: z.string().optional().default(''),  // was: z.string().min(1)
+  images: z.array(z.string()).min(1, 'كل إدخال يحتاج صورة واحدة على الأقل'),
+});
 const productSchema = z.object({
   name: z.string().min(1),
   code: z.string().min(1),
-  category: z.string().min(1),
+  categories: z.array(z.string()).min(1, 'اختر صنفاً واحداً على الأقل'),
   price: z.number().min(0),
   cost: z.number().min(0),
   size: z.string().optional(),
-  colors: z.array(colorSchema).min(1, 'مطلوب لون واحد على الأقل'),
+  colors: z.array(colorSchema).optional().default([]),
   isSoldOut: z.boolean().optional(),
   isDisappear: z.boolean().optional(), // customer-facing visibility toggle
   isInOffer: z.boolean().optional(),
@@ -104,7 +107,7 @@ router.get('/admin/products', requireAdmin, async (req, res, next) => {
     const p = Math.max(1, parseInt(page));
     const l = Math.min(100, parseInt(limit));
     const [data, total] = await Promise.all([
-      Product.find(q).populate('category', 'name').sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).lean(),
+      Product.find(q).populate('categories', 'name').sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).lean(),
       Product.countDocuments(q),
     ]);
     res.json({ data, page: p, limit: l, total }); // admin sees full doc incl. cost

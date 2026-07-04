@@ -26,10 +26,6 @@ const examRecordInput = z
         doctorName: z.string().optional(),
         date: z.coerce.date().optional(),   // ← NEW: coerce string → Date, optional (defaults to now)
     })
-    .superRefine((v, ctx) => {
-        if ((v.source === 'external' || v.source === 'internal') && !v.doctorName)
-            ctx.addIssue({ code: 'custom', message: 'اسم الطبيب مطلوب للفحص الخارجي/الداخلي', path: ['doctorName'] });
-    });
 
 const createExamSchema = z.object({
     customerId: z.string().optional(),
@@ -122,28 +118,26 @@ router.delete('/admin/eye-exams/:id', requireAdmin, async (req, res, next) => {
 });
 
 // ---------- Offers ----------
-const offerSchema = z
-    .object({
-        title: z.string().min(1),
-        type: z.enum(['category', 'products', 'product']),
-        category: z.string().optional(),
-        products: z.array(z.string()).optional(),
-        discountType: z.enum(['percentage', 'fixed']),
-        discountValue: z.number().min(0),
-        startDate: z.coerce.date(),
-        endDate: z.coerce.date(),
-        isActive: z.boolean().default(true),
-    })
-    .superRefine((v, ctx) => {
-        if (v.type === 'category' && !v.category)
-            ctx.addIssue({ code: 'custom', message: 'اختر صنفاً', path: ['category'] });
-        if ((v.type === 'products' || v.type === 'product') && (!v.products || v.products.length === 0))
-            ctx.addIssue({ code: 'custom', message: 'اختر منتجاً واحداً على الأقل', path: ['products'] });
-        if (v.discountType === 'percentage' && v.discountValue > 100)
-            ctx.addIssue({ code: 'custom', message: 'النسبة لا تتجاوز 100', path: ['discountValue'] });
-        if (v.endDate <= v.startDate)
-            ctx.addIssue({ code: 'custom', message: 'تاريخ الانتهاء بعد البداية', path: ['endDate'] });
-    });
+const offerSchema = z.object({
+    title: z.string().min(1),
+    type: z.enum(['all', 'categories', 'products', 'product']), // added 'all', renamed 'category' → 'categories'
+    categories: z.array(z.string()).optional(),  // was: category (single)
+    products: z.array(z.string()).optional(),
+    discountType: z.enum(['percentage', 'fixed']),
+    discountValue: z.number().min(0),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    isActive: z.boolean().default(true),
+}).superRefine((v, ctx) => {
+    if (v.type === 'categories' && (!v.categories || v.categories.length === 0))
+        ctx.addIssue({ code: 'custom', message: 'اختر صنفاً واحداً على الأقل', path: ['categories'] });
+    if ((v.type === 'products' || v.type === 'product') && (!v.products || v.products.length === 0))
+        ctx.addIssue({ code: 'custom', message: 'اختر منتجاً واحداً على الأقل', path: ['products'] });
+    if (v.discountType === 'percentage' && v.discountValue > 100)
+        ctx.addIssue({ code: 'custom', message: 'النسبة لا تتجاوز 100', path: ['discountValue'] });
+    if (v.endDate <= v.startDate)
+        ctx.addIssue({ code: 'custom', message: 'تاريخ الانتهاء بعد البداية', path: ['endDate'] });
+});
 
 router.get('/admin/offers', requireAdmin, async (_req, res, next) => {
     try {

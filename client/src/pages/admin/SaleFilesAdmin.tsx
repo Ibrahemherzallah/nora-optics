@@ -19,6 +19,7 @@ interface Draft {
   accessoriesDesc: string;
   accessoriesCost: string;
   notes: string;
+  date: string;
 }
 
 function calc(d: Draft) {
@@ -38,6 +39,7 @@ function draftToPayload(d: Draft) {
     accessoriesDesc: d.hasAccessories ? d.accessoriesDesc || undefined : undefined,
     accessoriesCost: d.hasAccessories ? Number(d.accessoriesCost) : undefined,
     notes: d.notes.trim() || undefined,
+    date: d.date || undefined,
   };
 }
 
@@ -50,6 +52,7 @@ const newDraft = (p: PickedProduct): Draft => ({
   accessoriesDesc: '',
   accessoriesCost: '',
   notes: '',
+  date: new Date().toISOString().slice(0, 10), // today
 });
 
 export function SaleFilesAdmin() {
@@ -354,6 +357,29 @@ function DraftRow({ draft, onChange, onRemove }: { draft: Draft; onChange: (d: D
             </div>
         )}
 
+        {/* date picker */}
+        <div className="mt-3">
+          <label className="label text-xs">تاريخ العملية</label>
+          <div className="flex items-center gap-2">
+            <input
+                type="date"
+                className="input nums py-1.5"
+                value={draft.date}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => onChange({ ...draft, date: e.target.value })}
+            />
+            {draft.date !== new Date().toISOString().slice(0, 10) && (
+                <button
+                    type="button"
+                    className="text-xs text-lime-hover hover:underline"
+                    onClick={() => onChange({ ...draft, date: new Date().toISOString().slice(0, 10) })}
+                >
+                  اليوم
+                </button>
+            )}
+          </div>
+        </div>
+
         {/* per-record note */}
         <div className="mt-3">
           <label className="label text-xs">ملاحظة (اختياري)</label>
@@ -417,7 +443,10 @@ function SaleFileDetail({ id, onClose }: { id: string; onClose: () => void }) {
                             {r.productCodeSnap && <span className="nums rounded bg-surface px-1.5 py-0.5 text-xs text-muted">{r.productCodeSnap}</span>}
                           </div>
                           <div className="nums text-xs text-muted">
-                            {r.quantity} × {shekel(r.sellingPrice)} {r.hasAccessories && r.accessoriesDesc && `· ملحقات: ${r.accessoriesDesc}`}
+                            {r.quantity} × {shekel(r.sellingPrice)}
+                            {r.hasAccessories && r.accessoriesDesc && ` · ملحقات: ${r.accessoriesDesc}`}
+                            {' · '}
+                            {new Date(r.date ?? r.createdAt).toLocaleDateString('en-GB')}
                           </div>
                           {r.notes && <div className="mt-1 text-xs text-muted">📝 {r.notes}</div>}
                         </div>

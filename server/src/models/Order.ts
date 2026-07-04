@@ -9,13 +9,13 @@ export interface OrderItem {
   imageSnap?: string;
   codeSnap: string;
   color?: string;
-  unitPrice: number; // AFTER offer, computed server-side
+  unitPrice: number;
   quantity: number;
   lineTotal: number;
 }
 
 export interface OrderDoc extends Document {
-  customer: Types.ObjectId;
+  customer?: Types.ObjectId;
   customerName: string;
   phone: string;
   address?: string;
@@ -47,7 +47,7 @@ const itemSchema = new Schema<OrderItem>(
 
 const orderSchema = new Schema<OrderDoc>(
   {
-    customer: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
+    customer: { type: Schema.Types.ObjectId, ref: 'Customer' },
     customerName: { type: String, required: true },
     phone: { type: String, required: true, match: /^\d{10}$/ },
     address: { type: String },

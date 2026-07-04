@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import {useEffect, useRef, useState} from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, X, Upload, Loader2, Star } from 'lucide-react';
+import {Plus, Pencil, Trash2, X, Upload, Loader2, Star, ChevronDown, Search} from 'lucide-react';
 import { api } from '@/lib/api.ts';
 import { Category } from '@/lib/types.ts';
 import { shekel } from '@/lib/format.ts';
@@ -16,7 +16,7 @@ interface ProductForm {
   _id?: string;
   name: string;
   code: string;
-  category: string;
+  categories: string[];
   price: number;
   cost: number;
   size?: string;
@@ -28,11 +28,11 @@ interface ProductForm {
 const emptyForm: ProductForm = {
   name: '',
   code: '',
-  category: '',
+  categories: [],
   price: 0,
   cost: 0,
   size: '',
-  colors: [{ name: '', images: [] }],
+  colors: [{ name: '', images: [] }], // always start with one slot
   isSoldOut: false,
   isDisappear: false,
 };
@@ -63,7 +63,15 @@ export function ProductsAdmin() {
       <div>
         <div className="mb-6 flex items-center justify-between gap-3">
           <h1 className="text-2xl font-bold">المنتجات</h1>
-          <button className="btn-primary" onClick={() => setEditing({ ...emptyForm, category: cats?.[0]?._id || '' })}>
+          <button
+              className="btn-primary"
+              onClick={() =>
+                  setEditing({
+                    ...emptyForm,
+                    categories: [],
+                  })
+              }
+          >
             <Plus size={18} /> منتج جديد
           </button>
         </div>
@@ -128,7 +136,10 @@ export function ProductsAdmin() {
                                 _id: p._id,
                                 name: p.name,
                                 code: p.code,
-                                category: typeof p.category === 'object' ? p.category._id : p.category,
+                                categories:
+                                    p.categories.map((c: any) =>
+                                        typeof c === 'object' ? c._id : c
+                                    ),
                                 price: p.price,
                                 cost: p.cost,
                                 size: p.size,
@@ -179,15 +190,17 @@ function ProductModal({ form, categories, onClose }: { form: ProductForm; catego
     const e: Record<string, string> = {};
     if (!s.name.trim()) e.name = 'الاسم مطلوب';
     if (!s.code.trim()) e.code = 'الكود مطلوب';
-    if (!s.category) e.category = 'اختر صنفاً';
+    if (!s.categories || s.categories.length === 0)
+      e.categories = 'اختر صنفاً واحداً على الأقل';
     if (s.price === null || s.price === undefined || Number.isNaN(s.price)) e.price = 'السعر مطلوب';
     else if (s.price <= 0) e.price = 'السعر يجب أن يكون أكبر من صفر';
     if (s.cost === null || s.cost === undefined || Number.isNaN(s.cost)) e.cost = 'التكلفة مطلوبة';
     else if (s.cost < 0) e.cost = 'التكلفة غير صحيحة';
 
     s.colors.forEach((c, i) => {
-      if (!c.name.trim()) e[`color_name_${i}`] = 'اسم اللون مطلوب';
-      if (c.images.length === 0) e[`color_img_${i}`] = 'أضف صورة واحدة على الأقل';
+      // name is now optional — no validation on color_name_${i}
+      if (c.images.length === 0)
+        e[`color_img_${i}`] = 'أضف صورة واحدة على الأقل';
     });
     return e;
   };
@@ -285,22 +298,25 @@ function ProductModal({ form, categories, onClose }: { form: ProductForm; catego
             </div>
 
             <div>
-              <label className="label">الصنف *</label>
-              <select className={errCls('category')} value={state.category} onChange={(e) => { setState({ ...state, category: e.target.value }); clearError('category'); }}>
-                <option value="">اختر صنفاً</option>
-                {categories.map((c) => (
-                    <option key={c._id} value={c._id}>{c.name}</option>
-                ))}
-              </select>
-              <Err k="category" />
+              <label className="label">الأصناف *</label>
+              <CategoryMultiSelect
+                  categories={categories}
+                  selected={state.categories}
+                  onChange={(ids) => { setState({ ...state, categories: ids }); clearError('categories'); }}
+                  error={errors.categories}
+              />
+              <Err k="categories" />
             </div>
 
             {/* Colors */}
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <label className="label mb-0">الألوان والصور</label>
-                <button className="text-sm text-lime-hover hover:underline" onClick={() => setState((s) => ({ ...s, colors: [...s.colors, { name: '', images: [] }] }))}>
-                  + إضافة لون
+                <button
+                    className="text-sm text-lime-hover hover:underline"
+                    onClick={() => setState((s) => ({ ...s, colors: [...s.colors, { name: '', images: [] }] }))}
+                >
+                  + إضافة لون آخر   {/* was: إضافة لون */}
                 </button>
               </div>
               <div className="space-y-3">
@@ -308,14 +324,14 @@ function ProductModal({ form, categories, onClose }: { form: ProductForm; catego
                     <div key={idx} className="rounded-xl border border-line p-3">
                       <div className="flex items-center gap-2">
                         <input
-                            className={errCls(`color_name_${idx}`)}
-                            placeholder="اسم اللون (مثال: أسود)"
+                            className="input"
+                            placeholder="اسم اللون (اختياري)"  // ← change placeholder
                             value={c.name}
                             onChange={(e) => {
                               const colors = [...state.colors];
                               colors[idx] = { ...colors[idx], name: e.target.value };
                               setState({ ...state, colors });
-                              clearError(`color_name_${idx}`);
+                              // no clearError needed since name isn't validated
                             }}
                         />
                         {state.colors.length > 1 && (
@@ -373,6 +389,111 @@ function ProductModal({ form, categories, onClose }: { form: ProductForm; catego
             </div>
           </div>
         </div>
+      </div>
+  );
+}
+
+// Add to your ui/ folder or inline in ProductsAdmin
+function CategoryMultiSelect({
+                               categories,
+                               selected,
+                               onChange,
+                               error,
+                             }: {
+  categories: Category[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+  error?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = categories.filter((c) =>
+      c.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+  };
+
+  return (
+      <div ref={ref} className="relative">
+        <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-sm transition ${
+                error ? 'border-destructive' : open ? 'border-lime ring-2 ring-lime/20' : 'border-line'
+            } bg-white hover:border-muted`}
+        >
+        <span className={selected.length ? '' : 'text-muted'}>
+          {selected.length ? `${selected.length} أصناف مختارة` : 'اختر الأصناف *'}
+        </span>
+          <ChevronDown size={16} className={`text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+
+        {open && (
+            <div className="absolute right-0 top-full z-50 mt-1 w-full overflow-hidden rounded-xl border border-line bg-white shadow-lg">
+              {/* search */}
+              <div className="flex items-center gap-2 border-b border-line px-3 py-2">
+                <Search size={14} className="shrink-0 text-muted" />
+                <input
+                    autoFocus
+                    className="w-full bg-transparent text-sm outline-none placeholder:text-muted"
+                    placeholder="بحث"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              {/* list */}
+              <div className="max-h-48 overflow-y-auto py-1">
+                {filtered.length === 0 && (
+                    <div className="px-4 py-3 text-center text-sm text-muted">لا توجد نتائج</div>
+                )}
+                {filtered.map((cat) => {
+                  const checked = selected.includes(cat._id);
+                  return (
+                      <button
+                          key={cat._id}
+                          type="button"
+                          onClick={() => toggle(cat._id)}
+                          className="flex w-full items-center justify-between px-4 py-2.5 text-right text-sm hover:bg-surface"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                              checked={checked}
+                              onCheckedChange={() => toggle(cat._id)}
+                          />
+                          <span>{cat.name}</span>
+                        </div>
+                        {/* show code if available */}
+                        {(cat as any).code && (
+                            <span className="nums text-xs text-muted">{(cat as any).code}</span>
+                        )}
+                      </button>
+                  );
+                })}
+              </div>
+
+              {/* footer count */}
+              {selected.length > 0 && (
+                  <div className="border-t border-line px-4 py-2 text-xs text-muted">
+                    محدد {selected.length}
+                  </div>
+              )}
+            </div>
+        )}
+
+        {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
       </div>
   );
 }

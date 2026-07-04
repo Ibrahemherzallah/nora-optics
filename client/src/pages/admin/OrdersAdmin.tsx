@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useReactToPrint } from 'react-to-print';
-import { Printer, X } from 'lucide-react';
+import {Printer, Trash2, X} from 'lucide-react';
 import { api } from '../../lib/api';
 import { Order } from '../../lib/types';
 import { shekel, STATUS_LABELS, STATUS_COLORS, DELIVERY } from '../../lib/format';
@@ -17,6 +17,11 @@ export function OrdersAdmin() {
     queryKey: ['admin-orders', filter],
     queryFn: async () => (await api.get(`/admin/orders${filter ? `?status=${filter}` : ''}`)).data,
   });
+  const del = useMutation({
+    mutationFn: (id: string) => api.delete(`/admin/orders/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-orders'] }),
+  });
+  const qc = useQueryClient(); // add this too if not already there
 
   return (
       <div>
@@ -44,6 +49,7 @@ export function OrdersAdmin() {
                   <th className="p-3 text-right font-medium">المنطقة</th>
                   <th className="p-3 text-right font-medium">الإجمالي</th>
                   <th className="p-3 text-right font-medium">الحالة</th>
+                  <th className="w-16 p-3 font-medium"></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -65,9 +71,20 @@ export function OrdersAdmin() {
                         <span className="nums font-semibold">{shekel(o.total)}</span>
                       </td>
                       <td className="p-3 text-right">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[o.status]}`}>
-                      {STATUS_LABELS[o.status]}
-                    </span>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[o.status]}`}>
+                          {STATUS_LABELS[o.status]}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <button
+                            className="rounded-lg p-2 text-destructive hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`حذف الطلب "${o.orderNumber}"؟`)) del.mutate(o._id);
+                            }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                 ))}

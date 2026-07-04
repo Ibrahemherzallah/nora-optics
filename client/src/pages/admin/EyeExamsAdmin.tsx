@@ -136,7 +136,7 @@ function ExamModal({ onClose, onExistingExam }: { onClose: () => void; onExistin
   const needsDoctor = rec.source === 'external' || rec.source === 'internal';
 
   const phoneOk = nc.phone === '' || /^\d{10}$/.test(nc.phone);
-  const canSave = rec.source && (!needsDoctor || rec.doctorName.trim()) && (linkMode === 'existing' ? !!customer : nc.name.trim().length > 0 && phoneOk);
+  const canSave = (linkMode === 'existing' ? !!customer : nc.name.trim().length > 0 && phoneOk);
 
   const save = useMutation({
     mutationFn: () => {
@@ -147,7 +147,7 @@ function ExamModal({ onClose, onExistingExam }: { onClose: () => void; onExistin
           ipd: rec.ipd || undefined,
           source: rec.source,
           doctorName: needsDoctor ? rec.doctorName : undefined,
-          date: rec.date || undefined,   // ← add this
+          date: rec.date || undefined,
         },
       };
       if (linkMode === 'existing' && customer) payload.customerId = customer._id;
@@ -319,7 +319,7 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
                         <button className="btn-ghost" onClick={() => { setAdding(false); setRec(emptyRecord()); }}>إلغاء</button>
                         <button
                             className="btn-primary"
-                            disabled={append.isPending || (needsDoctor && !rec.doctorName.trim())}
+                            disabled={append.isPending}
                             onClick={() => append.mutate()}
                         >
                           {append.isPending ? 'جارٍ الحفظ…' : 'حفظ الفحص'}
@@ -352,8 +352,11 @@ function PrescriptionForm({ rec, onChange }: { rec: RecState; onChange: (r: RecS
           </div>
           {needsDoctor && (
               <div>
-                <label className="label">اسم الطبيب *</label>
-                <input className="input" value={rec.doctorName} onChange={(e) => onChange({ ...rec, doctorName: e.target.value })} />
+                <label className="label">اسم الطبيب (اختياري)</label>
+                <input
+                    className="input"
+                    value={rec.doctorName}
+                    onChange={(e) => onChange({ ...rec, doctorName: e.target.value })} />
               </div>
           )}
         </div>
@@ -377,7 +380,7 @@ function PrescriptionForm({ rec, onChange }: { rec: RecState; onChange: (r: RecS
         </div>
         <label className="label">القياسات</label>
         <div className="overflow-x-auto rounded-xl border border-line">
-          <table className="w-full text-center text-sm">
+          <table className="w-full text-center text-sm" style={{ direction: 'ltr' }}>
             <thead className="bg-surface text-muted">
             <tr>
               <th className="p-2"></th>
@@ -390,12 +393,12 @@ function PrescriptionForm({ rec, onChange }: { rec: RecState; onChange: (r: RecS
             </thead>
             <tbody>
             <SideRow
-                label="العين اليمنى (R)"
+                label="Right (R)"
                 side={rec.right}
                 onChange={(s) => onChange({ ...rec, right: s })}
             />
             <SideRow
-                label="العين اليسرى (L)"
+                label="Left (L)"
                 side={rec.left}
                 onChange={(s) => onChange({ ...rec, left: s })}
             />

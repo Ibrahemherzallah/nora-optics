@@ -21,6 +21,8 @@ const recordInput = z
       accessoriesDesc: z.string().optional(),
       accessoriesCost: z.number().min(0).optional(),
       notes: z.string().optional(),        // NEW
+      date: z.coerce.date().optional(), // optional → defaults to now in model
+
     })
     .superRefine((v, ctx) => {
       if (v.priceType === 'custom' && (v.customPrice === undefined || v.customPrice === null))
@@ -55,7 +57,8 @@ async function buildRecord(input: z.infer<typeof recordInput>) {
     accessoriesCost: input.accessoriesCost,
     sellingPrice,
     profit,
-    notes: input.notes,        // NEW
+    notes: input.notes,
+    date: input.date,
   };
 }
 
