@@ -12,6 +12,7 @@ import saleFileRoutes from './modules/saleFiles';
 import examsOffersRoutes from './modules/examsOffers';
 import dashboardRoutes from './modules/dashboard';
 import customerRoutes from './modules/customers';
+import exportRoutes from './modules/export';
 
 async function main() {
   await connectDB(process.env.MONGODB_URI!);
@@ -31,6 +32,7 @@ async function main() {
   app.use('/api', examsOffersRoutes);
   app.use('/api', dashboardRoutes);
   app.use('/api', customerRoutes);
+  app.use('/api', exportRoutes);
 
   app.use((_req, res) => res.status(404).json({ error: { message: 'المسار غير موجود' } }));
   app.use(errorHandler);
