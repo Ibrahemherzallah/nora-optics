@@ -19,7 +19,7 @@ export function Login() {
       await login(username, password);
       navigate('/admin/dashboard');
     } catch (err) {
-      setError((err as Error).message);
+      setError("خطأ في اسم المستخدم او كلمة المرور");
     } finally {
       setLoading(false);
     }
