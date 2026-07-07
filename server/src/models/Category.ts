@@ -9,7 +9,7 @@ export interface CategoryDoc extends Document {
 
 const categorySchema = new Schema<CategoryDoc>(
   {
-    name: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true, unique: true },
     description: { type: String },
     image: { type: String, required: true },
     isDeleted: { type: Boolean, default: false, index: true },

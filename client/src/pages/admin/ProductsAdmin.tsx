@@ -394,12 +394,7 @@ function ProductModal({ form, categories, onClose }: { form: ProductForm; catego
 }
 
 // Add to your ui/ folder or inline in ProductsAdmin
-function CategoryMultiSelect({
-                               categories,
-                               selected,
-                               onChange,
-                               error,
-                             }: {
+function CategoryMultiSelect({categories, selected, onChange, error,}: {
   categories: Category[];
   selected: string[];
   onChange: (ids: string[]) => void;
@@ -462,17 +457,11 @@ function CategoryMultiSelect({
                 {filtered.map((cat) => {
                   const checked = selected.includes(cat._id);
                   return (
-                      <button
-                          key={cat._id}
-                          type="button"
-                          onClick={() => toggle(cat._id)}
+                      <button key={cat._id} type="button" onClick={() => toggle(cat._id)}
                           className="flex w-full items-center justify-between px-4 py-2.5 text-right text-sm hover:bg-surface"
                       >
                         <div className="flex items-center gap-2">
-                          <Checkbox
-                              checked={checked}
-                              onCheckedChange={() => toggle(cat._id)}
-                          />
+                          <Checkbox checked={checked} onCheckedChange={() => toggle(cat._id)}/>
                           <span>{cat.name}</span>
                         </div>
                         {/* show code if available */}
@@ -492,8 +481,6 @@ function CategoryMultiSelect({
               )}
             </div>
         )}
-
-        {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
       </div>
   );
 }

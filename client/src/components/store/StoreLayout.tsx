@@ -127,10 +127,15 @@ export function StoreLayout() {
             </div>
           </div>
           <div className="border-t border-white/10 py-4 text-center text-xs text-white/50">
-            © {new Date().getFullYear()} Nora Optics — جميع الحقوق محفوظة
+            <p>© {new Date().getFullYear()} Nora Optics — جميع الحقوق محفوظة</p>
+            <p className="mt-1">
+              Developed By:{" "}
+              <a href="tel:+972597250539" className="hover:text-lime transition-colors">
+                Ibrahem Herzallah · 059-725-0539
+              </a>
+            </p>
           </div>
         </footer>
-
         <CartDrawer />
       </div>
   );

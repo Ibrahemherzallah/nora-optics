@@ -24,16 +24,19 @@ router.get('/admin/categories', requireAdmin, async (_req, res, next) => {
 router.post('/admin/categories', requireAdmin, validate(categorySchema), async (req, res, next) => {
   try {
     res.status(201).json(await Category.create(req.body));
-  } catch (e) {
+  } catch (e: any) {
+    if (e.code === 11000) return next(new ApiError(409, 'يوجد صنف بهذا الاسم بالفعل'));
     next(e);
   }
 });
+
 router.put('/admin/categories/:id', requireAdmin, validate(categorySchema.partial()), async (req, res, next) => {
   try {
     const doc = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!doc) throw new ApiError(404, 'الصنف غير موجود');
     res.json(doc);
-  } catch (e) {
+  } catch (e: any) {
+    if (e.code === 11000) return next(new ApiError(409, 'يوجد صنف بهذا الاسم بالفعل'));
     next(e);
   }
 });
