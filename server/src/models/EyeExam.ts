@@ -5,6 +5,7 @@ interface EyeSide {
 }
 
 export interface EyeExamRecord {
+    _id: Types.ObjectId;
     right: EyeSide;
     left: EyeSide;
     ipd?: string;

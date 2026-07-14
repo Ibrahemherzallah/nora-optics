@@ -195,7 +195,9 @@ router.patch('/admin/eye-exams/:id/records/:recordId', requireAdmin, validate(ex
         const exam = await EyeExam.findById(req.params.id);
         if (!exam) throw new ApiError(404, 'الفحص غير موجود');
 
-        const record = exam.records.id(req.params.recordId);
+        const record = exam.records.find(
+            (r) => r._id.toString() === req.params.recordId
+        );
         if (!record) throw new ApiError(404, 'السجل غير موجود');
 
         Object.assign(record, req.body);
