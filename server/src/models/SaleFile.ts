@@ -1,6 +1,7 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface SaleRecord {
+    _id: Types.ObjectId;
     product: Types.ObjectId;
     productNameSnap: string;
     productCodeSnap: string;

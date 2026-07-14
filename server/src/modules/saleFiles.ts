@@ -177,7 +177,9 @@ router.patch('/admin/sale-files/:id/records/:recordId', requireAdmin, validate(r
     const saleFile = await SaleFile.findById(req.params.id);
     if (!saleFile) throw new ApiError(404, 'الملف غير موجود');
 
-    const record = saleFile.records.id(req.params.recordId);
+    const record = saleFile.records.find(
+        (r) => r._id.toString() === req.params.recordId
+    );
     if (!record) throw new ApiError(404, 'السجل غير موجود');
 
     const updated = await buildRecord(req.body);
