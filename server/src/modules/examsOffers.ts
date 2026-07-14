@@ -7,7 +7,9 @@ import { Customer } from '../models/Customer';
 import { requireAdmin, validate, ApiError } from '../middleware';
 
 const router = Router();
-
+function escapeRegex(s: string) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 // ---------- Shared schemas ----------
 const sideSchema = z.object({
     sph: z.string().optional(),
@@ -71,10 +73,24 @@ router.post('/admin/eye-exams', requireAdmin, validate(createExamSchema), async 
     }
 });
 
-router.get('/admin/eye-exams', requireAdmin, async (_req, res, next) => {
+router.get('/admin/eye-exams', requireAdmin, async (req, res, next) => {
     try {
+        const { search } = req.query as any;
+        let customerIds: any[] | null = null;
+
+        if (search && String(search).trim()) {
+            const rx = new RegExp(escapeRegex(String(search).trim()), 'i');
+            const customers = await Customer.find({
+                $or: [{ name: rx }, { phone: rx }],
+            }).select('_id').lean();
+            customerIds = customers.map((c) => c._id);
+        }
+
+        const q: any = {};
+        if (customerIds !== null) q.customer = { $in: customerIds };
+
         res.json({
-            data: await EyeExam.find()
+            data: await EyeExam.find(q)
                 .populate('customer', 'name phone')
                 .sort({ updatedAt: -1 })
                 .limit(100)
@@ -169,6 +185,22 @@ router.delete('/admin/offers/:id', requireAdmin, async (req, res, next) => {
     try {
         await Offer.findByIdAndDelete(req.params.id);
         res.json({ ok: true });
+    } catch (e) {
+        next(e);
+    }
+});
+
+router.patch('/admin/eye-exams/:id/records/:recordId', requireAdmin, validate(examRecordInput), async (req, res, next) => {
+    try {
+        const exam = await EyeExam.findById(req.params.id);
+        if (!exam) throw new ApiError(404, 'الفحص غير موجود');
+
+        const record = exam.records.id(req.params.recordId);
+        if (!record) throw new ApiError(404, 'السجل غير موجود');
+
+        Object.assign(record, req.body);
+        await exam.save();
+        res.json(exam);
     } catch (e) {
         next(e);
     }

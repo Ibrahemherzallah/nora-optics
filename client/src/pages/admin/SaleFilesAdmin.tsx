@@ -404,6 +404,10 @@ function SaleFileDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Draft | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+
   const append = useMutation({
     mutationFn: () => api.post(`/admin/sale-files/${id}/records`, draftToPayload(draft!)),
     onSuccess: () => {
@@ -414,12 +418,51 @@ function SaleFileDetail({ id, onClose }: { id: string; onClose: () => void }) {
     onError: (e) => setError((e as Error).message),
   });
 
+  const editRecord = useMutation({
+    mutationFn: ({ recordId, payload }: { recordId: string; payload: any }) =>
+        api.patch(`/admin/sale-files/${id}/records/${recordId}`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sale-file', id] });
+      qc.invalidateQueries({ queryKey: ['admin-sale-files'] });
+      setEditingRecordId(null);
+      setEditDraft(null);
+    },
+    onError: (e) => setEditError((e as Error).message),
+  });
+
+
+  // build a Draft from an existing record so DraftRow can render it
+  function recordToDraft(r: any): Draft {
+    return {
+      product: {
+        _id: r.product,
+        name: r.productNameSnap,
+        code: r.productCodeSnap,
+        image: r.productImageSnap,
+        price: r.originalPrice,
+        cost: r.cost,
+      },
+      priceType: r.priceType,
+      customPrice: r.customPrice != null ? String(r.customPrice) : '',
+      quantity: r.quantity,
+      hasAccessories: r.hasAccessories ?? false,
+      accessoriesDesc: r.accessoriesDesc ?? '',
+      accessoriesCost: r.accessoriesCost != null ? String(r.accessoriesCost) : '',
+      notes: r.notes ?? '',
+      date: r.date
+          ? new Date(r.date).toISOString().slice(0, 10)
+          : new Date(r.createdAt).toISOString().slice(0, 10),
+    };
+  }
+
+
   return (
       <Modal title="ملف البيع" onClose={onClose} maxWidth="max-w-2xl">
         {isLoading || !file ? (
             <div className="py-8 text-center text-muted">جارٍ التحميل…</div>
         ) : (
             <div className="space-y-4">
+              {/* Customer card */}
               <div className="rounded-xl bg-surface p-3 text-sm">
                 {file.walkIn || !file.customer ? (
                     <div className="font-semibold">زبون محل</div>
@@ -429,38 +472,86 @@ function SaleFileDetail({ id, onClose }: { id: string; onClose: () => void }) {
                       <div className="nums text-muted">{file.customer?.phone}</div>
                     </>
                 )}
-                {/* file-level note removed */}
               </div>
 
+              {/* Records */}
               <div className="space-y-2">
-                {file.records.map((r: any, i: number) => (
-                    <div key={i} className="flex items-start justify-between rounded-xl border border-line p-3 text-sm">
-                      <div className="flex items-start gap-2">
-                        {r.productImageSnap && <img src={r.productImageSnap} alt="" className="h-9 w-9 rounded-lg object-cover" />}
-                        <div>
-                          <div className="flex items-center gap-2 font-medium">
-                            {r.productNameSnap}
-                            {r.productCodeSnap && <span className="nums rounded bg-surface px-1.5 py-0.5 text-xs text-muted">{r.productCodeSnap}</span>}
+                {file.records.map((r: any) => (
+                    <div key={r._id}>
+                      {editingRecordId === r._id && editDraft ? (
+                          /* ── inline edit form ── */
+                          <div className="rounded-xl border-2 border-lime p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-sm font-bold text-muted">تعديل السجل</span>
+                              <button
+                                  className="text-xs text-muted hover:underline"
+                                  onClick={() => { setEditingRecordId(null); setEditDraft(null); setEditError(null); }}
+                              >
+                                إلغاء
+                              </button>
+                            </div>
+                            <DraftRow
+                                draft={editDraft}
+                                onChange={setEditDraft}
+                                onRemove={() => { setEditingRecordId(null); setEditDraft(null); }}
+                            />
+                            {editError && <div className="mt-2 text-xs text-destructive">{editError}</div>}
+                            <button
+                                className="btn-primary mt-3 w-full"
+                                disabled={editRecord.isPending}
+                                onClick={() => editRecord.mutate({ recordId: r._id, payload: draftToPayload(editDraft) })}
+                            >
+                              {editRecord.isPending ? 'جارٍ الحفظ…' : 'حفظ التعديل'}
+                            </button>
                           </div>
-                          <div className="nums text-xs text-muted">
-                            {r.quantity} × {shekel(r.sellingPrice)}
-                            {r.hasAccessories && r.accessoriesDesc && ` · ملحقات: ${r.accessoriesDesc}`}
-                            {' · '}
-                            {new Date(r.date ?? r.createdAt).toLocaleDateString('en-GB')}
+                      ) : (
+                          /* ── read-only row ── */
+                          <div className="flex items-start justify-between rounded-xl border border-line p-3 text-sm">
+                            <div className="flex items-start gap-2">
+                              {r.productImageSnap && (
+                                  <img src={r.productImageSnap} alt="" className="h-9 w-9 rounded-lg object-cover" />
+                              )}
+                              <div>
+                                <div className="flex items-center gap-2 font-medium">
+                                  {r.productNameSnap}
+                                  {r.productCodeSnap && (
+                                      <span className="nums rounded bg-surface px-1.5 py-0.5 text-xs text-muted">
+                              {r.productCodeSnap}
+                            </span>
+                                  )}
+                                </div>
+                                <div className="nums text-xs text-muted">
+                                  {r.quantity} × {shekel(r.sellingPrice)}
+                                  {r.hasAccessories && r.accessoriesDesc && ` · ملحقات: ${r.accessoriesDesc}`}
+                                  {' · '}
+                                  {new Date(r.date ?? r.createdAt).toLocaleDateString('en-GB')}
+                                </div>
+                                {r.notes && <div className="mt-1 text-xs text-muted">📝 {r.notes}</div>}
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className="nums font-semibold text-lime-hover">{shekel(r.profit)}</span>
+                              <button
+                                  className="rounded-lg p-1.5 hover:bg-surface"
+                                  title="تعديل"
+                                  onClick={() => { setEditingRecordId(r._id); setEditDraft(recordToDraft(r)); setEditError(null); }}
+                              >
+                                <Pencil size={15} />
+                              </button>
+                            </div>
                           </div>
-                          {r.notes && <div className="mt-1 text-xs text-muted">📝 {r.notes}</div>}
-                        </div>
-                      </div>
-                      <span className="nums shrink-0 font-semibold text-lime-hover">{shekel(r.profit)}</span>
+                      )}
                     </div>
                 ))}
               </div>
 
+              {/* Totals */}
               <div className="flex justify-between rounded-xl bg-surface p-3 text-sm">
                 <span>إجمالي البيع: <span className="nums font-bold">{shekel(file.totalSelling)}</span></span>
                 <span>إجمالي الربح: <span className="nums font-bold text-lime-hover">{shekel(file.totalProfit)}</span></span>
               </div>
 
+              {/* Append new record */}
               <div className="border-t border-line pt-4">
                 <h4 className="mb-2 text-sm font-bold text-muted">إضافة عملية جديدة لنفس العميل</h4>
                 {!draft ? (
@@ -469,7 +560,11 @@ function SaleFileDetail({ id, onClose }: { id: string; onClose: () => void }) {
                     <>
                       <DraftRow draft={draft} onChange={setDraft} onRemove={() => setDraft(null)} />
                       <ErrorBox message={error} />
-                      <button className="btn-primary mt-3 w-full" disabled={append.isPending} onClick={() => append.mutate()}>
+                      <button
+                          className="btn-primary mt-3 w-full"
+                          disabled={append.isPending}
+                          onClick={() => append.mutate()}
+                      >
                         {append.isPending ? 'جارٍ الإضافة…' : 'إضافة العملية'}
                       </button>
                     </>
