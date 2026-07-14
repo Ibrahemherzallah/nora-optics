@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { api } from '../../lib/api';
+import {Plus, Pencil, Trash2, Search} from 'lucide-react';
+import { api } from '@/lib/api.ts';
 import { Modal, ErrorBox, EmptyRow } from '../../components/admin/Modal';
 import { CustomerPicker, PickedCustomer } from '../../components/admin/CustomerPicker';
 
@@ -28,10 +28,12 @@ export function EyeExamsAdmin() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-eye-exams'],
-    queryFn: async () => (await api.get('/admin/eye-exams')).data.data,
+    queryKey: ['admin-eye-exams', search],  // ← add search to key
+    queryFn: async () =>
+        (await api.get(`/admin/eye-exams?search=${encodeURIComponent(search)}`)).data.data,
   });
 
   const del = useMutation({
@@ -47,7 +49,11 @@ export function EyeExamsAdmin() {
             <Plus size={18} /> فحص جديد
           </button>
         </div>
-
+        {/* #6 — search */}
+        <div className="relative mb-4 md:max-w-xs">
+          <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input className="input pr-9" placeholder="ابحث باسم العميل أو الهاتف" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
         {isLoading ? (
             <div className="py-12 text-center text-muted">جارٍ التحميل…</div>
         ) : (
@@ -245,6 +251,11 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const [rec, setRec] = useState(emptyRecord());
   const [error, setError] = useState<string | null>(null);
 
+  // editing state
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editRec, setEditRec] = useState<ReturnType<typeof emptyRecord> | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+
   const { data: exam, isLoading } = useQuery({
     queryKey: ['admin-eye-exam', id],
     queryFn: async () => (await api.get(`/admin/eye-exams/${id}`)).data,
@@ -258,7 +269,7 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
           ipd: rec.ipd || undefined,
           source: rec.source,
           doctorName: rec.source !== 'old' ? rec.doctorName : undefined,
-          date: rec.date || undefined,   // ← add this
+          date: rec.date || undefined,
         }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-eye-exam', id] });
@@ -269,7 +280,31 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
     onError: (e) => setError((e as Error).message),
   });
 
-  const needsDoctor = rec.source === 'external' || rec.source === 'internal';
+  const editRecord = useMutation({
+    mutationFn: ({ recordId, payload }: { recordId: string; payload: any }) =>
+        api.patch(`/admin/eye-exams/${id}/records/${recordId}`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-eye-exam', id] });
+      qc.invalidateQueries({ queryKey: ['admin-eye-exams'] });
+      setEditingRecordId(null);
+      setEditRec(null);
+    },
+    onError: (e) => setEditError((e as Error).message),
+  });
+
+  function recordToState(r: any): ReturnType<typeof emptyRecord> {
+    return {
+      right: r.right ?? emptySide(),
+      left: r.left ?? emptySide(),
+      ipd: r.ipd ?? '',
+      source: r.source ?? 'external',
+      doctorName: r.doctorName ?? '',
+      date: r.date
+          ? new Date(r.date).toISOString().slice(0, 10)
+          : new Date(r.createdAt).toISOString().slice(0, 10),
+    };
+  }
+
 
   return (
       <Modal title="ملف فحوصات النظر" onClose={onClose} maxWidth="max-w-3xl">
@@ -283,17 +318,68 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
                 {exam.customer?.phone && <div className="nums text-muted">{exam.customer.phone}</div>}
               </div>
 
-              {/* Records list — newest first */}
+              {/* Records — newest first */}
               <div className="space-y-3">
-                {[...exam.records].reverse().map((r: any, i: number) => (
-                    <div key={r._id || i} className="rounded-xl border border-line p-3">
-                      <div className="mb-2 flex items-center justify-between text-xs text-muted">
-                        <span>{SOURCE_LABELS[r.source]}{r.doctorName ? ` · ${r.doctorName}` : ''}</span>
+                {[...exam.records].reverse().map((r: any) => (
+                    <div key={r._id}>
+                      {editingRecordId === r._id && editRec ? (
+                          /* ── inline edit form ── */
+                          <div className="rounded-xl border-2 border-lime p-3">
+                            <div className="mb-3 flex items-center justify-between">
+                              <span className="text-sm font-bold text-muted">تعديل الفحص</span>
+                              <button
+                                  className="text-xs text-muted hover:underline"
+                                  onClick={() => { setEditingRecordId(null); setEditRec(null); setEditError(null); }}
+                              >
+                                إلغاء
+                              </button>
+                            </div>
+                            <PrescriptionForm rec={editRec} onChange={setEditRec} />
+                            {editError && <div className="mt-2 text-xs text-destructive">{editError}</div>}
+                            <button
+                                className="btn-primary mt-3 w-full"
+                                disabled={editRecord.isPending}
+                                onClick={() =>
+                                    editRecord.mutate({
+                                      recordId: r._id,
+                                      payload: {
+                                        right: editRec.right,
+                                        left: editRec.left,
+                                        ipd: editRec.ipd || undefined,
+                                        source: editRec.source,
+                                        doctorName: editRec.source !== 'old' ? editRec.doctorName : undefined,
+                                        date: editRec.date || undefined,
+                                      },
+                                    })
+                                }
+                            >
+                              {editRecord.isPending ? 'جارٍ الحفظ…' : 'حفظ التعديل'}
+                            </button>
+                          </div>
+                      ) : (
+                          /* ── read-only row ── */
+                          <div className="rounded-xl border border-line p-3">
+                            <div className="mb-2 flex items-center justify-between text-xs text-muted">
+                      <span>
+                        {SOURCE_LABELS[r.source]}
+                        {r.doctorName ? ` · ${r.doctorName}` : ''}
+                      </span>
+                              <div className="flex items-center gap-2">
                         <span className="nums">
                           {new Date(r.date ?? r.createdAt).toLocaleDateString('en-GB')}
                         </span>
-                      </div>
-                      <PrescriptionTable right={r.right} left={r.left} ipd={r.ipd} />
+                                <button
+                                    className="rounded-lg p-1 hover:bg-surface"
+                                    title="تعديل"
+                                    onClick={() => { setEditingRecordId(r._id); setEditRec(recordToState(r)); setEditError(null); }}
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              </div>
+                            </div>
+                            <PrescriptionTable right={r.right} left={r.left} ipd={r.ipd} />
+                          </div>
+                      )}
                     </div>
                 ))}
                 {exam.records.length === 0 && (
@@ -316,12 +402,10 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
                       <PrescriptionForm rec={rec} onChange={setRec} />
                       <ErrorBox message={error} />
                       <div className="flex justify-end gap-2">
-                        <button className="btn-ghost" onClick={() => { setAdding(false); setRec(emptyRecord()); }}>إلغاء</button>
-                        <button
-                            className="btn-primary"
-                            disabled={append.isPending}
-                            onClick={() => append.mutate()}
-                        >
+                        <button className="btn-ghost" onClick={() => { setAdding(false); setRec(emptyRecord()); }}>
+                          إلغاء
+                        </button>
+                        <button className="btn-primary" disabled={append.isPending} onClick={() => append.mutate()}>
                           {append.isPending ? 'جارٍ الحفظ…' : 'حفظ الفحص'}
                         </button>
                       </div>

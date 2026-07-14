@@ -60,15 +60,16 @@ export function Products() {
 
           {/* Category dropdown — shadcn-style Select */}
           <div className="w-full md:w-52">
-            <Select
-                value={category}
-                onValueChange={(v) => setParam('category', v || null)}
-            >
+            <Select value={category || 'all'} onValueChange={(v) => setParam('category', v === 'all' ? null : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="كل الأصناف" />
+            <span>
+              {category
+                  ? (cats?.find((c) => c._id === category)?.name ?? category)
+                  : 'كل الأصناف'}
+            </span>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">كل الأصناف</SelectItem>
+                <SelectItem value="all">كل الأصناف</SelectItem>
                 {cats?.map((c) => (
                     <SelectItem key={c._id} value={c._id}>
                       {c.name}

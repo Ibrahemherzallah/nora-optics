@@ -172,4 +172,22 @@ router.delete('/admin/sale-files/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
+router.patch('/admin/sale-files/:id/records/:recordId', requireAdmin, validate(recordInput), async (req, res, next) => {
+  try {
+    const saleFile = await SaleFile.findById(req.params.id);
+    if (!saleFile) throw new ApiError(404, 'الملف غير موجود');
+
+    const record = saleFile.records.id(req.params.recordId);
+    if (!record) throw new ApiError(404, 'السجل غير موجود');
+
+    const updated = await buildRecord(req.body);
+    Object.assign(record, updated);
+
+    await saleFile.save();
+    res.json(saleFile);
+  } catch (e) {
+    next(e);
+  }
+});
+
 export default router;
