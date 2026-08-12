@@ -17,6 +17,7 @@ const emptyRecord = () => ({
   source: 'external' as 'external' | 'internal' | 'old',
   doctorName: '',
   date: new Date().toISOString().slice(0, 10),
+  note: ''
 });
 
 
@@ -273,7 +274,7 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
           source: rec.source,
           doctorName: rec.source !== 'old' ? rec.doctorName : undefined,
           date: rec.date || undefined,
-          note: rec.note?.trim() || undefined,   // ← add this
+          note: rec.note?.trim() || undefined,
         }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-eye-exam', id] });
@@ -306,6 +307,7 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
       date: r.date
           ? new Date(r.date).toISOString().slice(0, 10)
           : new Date(r.createdAt).toISOString().slice(0, 10),
+      note: r.note,
     };
   }
 
