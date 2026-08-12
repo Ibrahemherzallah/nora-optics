@@ -15,8 +15,8 @@ const emptyRecord = () => ({
   ipd: '',
   source: 'external' as 'external' | 'internal' | 'old',
   doctorName: '',
-  date: new Date().toISOString().slice(0, 10), // 'YYYY-MM-DD' for the date input
-  note: '',    // ← NEW
+  date: new Date().toISOString().slice(0, 10),
+  note: '',
 });
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -272,6 +272,7 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
           source: rec.source,
           doctorName: rec.source !== 'old' ? rec.doctorName : undefined,
           date: rec.date || undefined,
+          note: rec.note?.trim() || undefined,   // ← add this
         }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-eye-exam', id] });
