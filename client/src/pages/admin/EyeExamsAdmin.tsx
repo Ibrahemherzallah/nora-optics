@@ -9,6 +9,7 @@ type Side = { sph: string; cyl: string; axis: string; add: string; va: string };
 
 const emptySide = (): Side => ({ sph: '', cyl: '', axis: '', add: '', va: '' });
 
+
 const emptyRecord = () => ({
   right: emptySide(),
   left: emptySide(),
@@ -16,8 +17,8 @@ const emptyRecord = () => ({
   source: 'external' as 'external' | 'internal' | 'old',
   doctorName: '',
   date: new Date().toISOString().slice(0, 10),
-  note: '',
 });
+
 
 const SOURCE_LABELS: Record<string, string> = {
   external: 'فحص خارجي',
