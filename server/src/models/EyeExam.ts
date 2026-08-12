@@ -12,6 +12,7 @@ export interface EyeExamRecord {
     source: 'external' | 'internal' | 'old';
     doctorName?: string;
     date: Date;
+    note?: string;
     createdAt: Date;
 }
 
@@ -33,7 +34,8 @@ const recordSchema = new Schema<EyeExamRecord>(
         ipd: { type: String },
         source: { type: String, enum: ['external', 'internal', 'old'], required: true },
         doctorName: { type: String },
-        date: { type: Date, default: Date.now },   // ← add this line
+        date: { type: Date, default: Date.now },
+        note: { type: String },
         createdAt: { type: Date, default: Date.now },
     },
     { _id: true }

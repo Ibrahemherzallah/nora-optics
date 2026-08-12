@@ -27,6 +27,7 @@ const examRecordInput = z
         source: z.enum(['external', 'internal', 'old']),
         doctorName: z.string().optional(),
         date: z.coerce.date().optional(),   // ← NEW: coerce string → Date, optional (defaults to now)
+        note: z.string().optional(),   // ← NEW
     })
 
 const createExamSchema = z.object({

@@ -16,6 +16,7 @@ const emptyRecord = () => ({
   source: 'external' as 'external' | 'internal' | 'old',
   doctorName: '',
   date: new Date().toISOString().slice(0, 10), // 'YYYY-MM-DD' for the date input
+  note: '',    // ← NEW
 });
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -154,6 +155,7 @@ function ExamModal({ onClose, onExistingExam }: { onClose: () => void; onExistin
           source: rec.source,
           doctorName: needsDoctor ? rec.doctorName : undefined,
           date: rec.date || undefined,
+          note: rec.note?.trim() || undefined,
         },
       };
       if (linkMode === 'existing' && customer) payload.customerId = customer._id;
@@ -349,6 +351,7 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
                                         source: editRec.source,
                                         doctorName: editRec.source !== 'old' ? editRec.doctorName : undefined,
                                         date: editRec.date || undefined,
+                                        note: editRec.note || '',
                                       },
                                     })
                                 }
@@ -378,6 +381,7 @@ function ExamDetail({ id, onClose }: { id: string; onClose: () => void }) {
                               </div>
                             </div>
                             <PrescriptionTable right={r.right} left={r.left} ipd={r.ipd} />
+                            {r.note && <p className="mt-2 text-xs text-muted">📝 {r.note}</p>}
                           </div>
                       )}
                     </div>
@@ -492,6 +496,15 @@ function PrescriptionForm({ rec, onChange }: { rec: RecState; onChange: (r: RecS
         <div className="max-w-[200px]">
           <label className="label">I.P.D</label>
           <input className="input nums" value={rec.ipd} onChange={(e) => onChange({ ...rec, ipd: e.target.value })} placeholder="مثال: 62" />
+        </div>
+        <div>
+          <label className="label">ملاحظة (اختياري)</label>
+          <input
+              className="input"
+              placeholder="ملاحظة على هذا الفحص…"
+              value={rec.note}
+              onChange={(e) => onChange({ ...rec, note: e.target.value })}
+          />
         </div>
       </div>
   );
