@@ -9,6 +9,7 @@ type Side = { sph: string; cyl: string; axis: string; add: string; va: string };
 
 const emptySide = (): Side => ({ sph: '', cyl: '', axis: '', add: '', va: '' });
 
+
 const emptyRecord = () => ({
   right: emptySide(),
   left: emptySide(),
