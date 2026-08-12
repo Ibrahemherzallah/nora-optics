@@ -16,7 +16,6 @@ const emptyRecord = () => ({
   source: 'external' as 'external' | 'internal' | 'old',
   doctorName: '',
   date: new Date().toISOString().slice(0, 10),
-  note: '',
 });
 
 const SOURCE_LABELS: Record<string, string> = {
