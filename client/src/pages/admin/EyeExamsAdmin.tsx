@@ -18,6 +18,7 @@ const emptyRecord = () => ({
   date: new Date().toISOString().slice(0, 10),
 });
 
+
 const SOURCE_LABELS: Record<string, string> = {
   external: 'فحص خارجي',
   internal: 'فحص داخلي',
