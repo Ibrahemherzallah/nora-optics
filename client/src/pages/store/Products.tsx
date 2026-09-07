@@ -35,7 +35,7 @@ export function Products() {
       if (search)   qs.set('search',   search);
       if (inOffer)  qs.set('inOffer',  'true');
       if (inStock)  qs.set('inStock',  'true');
-      qs.set('limit', '24');
+      // removed: qs.set('limit', '24');
       return (await api.get<Paginated<PublicProduct>>(`/products?${qs}`)).data;
     },
   });

@@ -12,19 +12,19 @@ const router = Router();
 // ---------- PUBLIC ----------
 router.get('/products', async (req, res, next) => {
   try {
-    const { category, search, inOffer, inStock, page = '1', limit = '12' } = req.query as any;
+    const { category, search, inOffer, inStock, page = '1', limit } = req.query as any;
     const q: any = { isDisappear: false }; // customers only see visible products
     if (category) q.categories = category;
     if (inStock === 'true') q.isSoldOut = false;
     if (search) q.$or = [{ name: new RegExp(escapeRegex(search), 'i') }, { code: new RegExp(escapeRegex(search), 'i') }];
-    if (req.query.featured === 'true') q.isFeatured = true;  // ← add this
+    if (req.query.featured === 'true') q.isFeatured = true;
 
     const p = Math.max(1, parseInt(page));
-    const l = Math.min(48, parseInt(limit));
+    const l = limit ? Math.min(48, parseInt(limit)) : 0; // 0 = no limit in Mongoose
     const offerIdx = await loadActiveOffers();
 
     let [docs, total] = await Promise.all([
-      Product.find(q).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).lean(),
+      Product.find(q).sort({ createdAt: -1 }).skip(l ? (p - 1) * l : 0).limit(l).lean(),
       Product.countDocuments(q),
     ]);
     let data = docs.map((d) => serializeProductPublic(d, offerIdx));
