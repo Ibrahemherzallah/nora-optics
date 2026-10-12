@@ -8,6 +8,7 @@ import { CustomerPicker, PickedCustomer } from '../../components/admin/CustomerP
 import { ProductPicker, PickedProduct } from '../../components/admin/ProductPicker';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import {useAuth} from "@/store/auth.ts";
 
 
 interface Draft {
@@ -59,6 +60,8 @@ export function SaleFilesAdmin() {
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const { username } = useAuth();
+
   const qc = useQueryClient();
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/sale-files/${id}`),
@@ -94,7 +97,11 @@ export function SaleFilesAdmin() {
                   <th className="p-3 text-right font-medium">العميل</th>
                   <th className="p-3 text-right font-medium">عدد العمليات</th>
                   <th className="p-3 text-right font-medium">إجمالي البيع</th>
-                  <th className="p-3 text-right font-medium">إجمالي الربح</th>
+                  {
+                      username !== 'admin' && (
+                          <th className="p-3 text-right font-medium">إجمالي الربح</th>
+                      )
+                  }
                   <th className="p-3 text-right font-medium">المصدر</th>
                   <th className="w-24 p-3 font-medium">إجراءات</th>
                 </tr>
@@ -114,9 +121,14 @@ export function SaleFilesAdmin() {
                       </td>
                       <td className="p-3 text-right"><span className="nums">{f.records?.length || 0}</span></td>
                       <td className="p-3 text-right"><span className="nums">{shekel(f.totalSelling)}</span></td>
-                      <td className="p-3 text-right font-semibold text-lime-hover">
-                        {f.isVoided ? '—' : <span className="nums">{shekel(f.totalProfit)}</span>}
-                      </td>
+                      {
+                        username !== 'admin' && (
+                              <td className="p-3 text-right font-semibold text-lime-hover">
+                                {f.isVoided ? '—' : <span className="nums">{shekel(f.totalProfit)}</span>}
+                              </td>
+                          )
+                      }
+
                       <td className="p-3 text-right">
                         <div className="flex flex-wrap gap-1">
                       <span className={`rounded-full px-2 py-0.5 text-xs ${f.origin === 'online' ? 'bg-blue-100 text-blue-800' : 'bg-surface text-muted'}`}>
@@ -178,6 +190,7 @@ function CreateSaleModal({ onClose, onExistingFile }: { onClose: () => void; onE
   const [nc, setNc] = useState({ name: '', phone: '', address: '', age: '', sex: '' });
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [existingFileId, setExistingFileId] = useState<string | null>(null);
+  const { username } = useAuth();
 
   const totalSelling = drafts.reduce((s, d) => s + calc(d).sellingPrice * d.quantity, 0);
   const totalProfit = drafts.reduce((s, d) => s + calc(d).profit, 0);
@@ -282,7 +295,11 @@ function CreateSaleModal({ onClose, onExistingFile }: { onClose: () => void; onE
           {drafts.length > 0 && (
               <div className="flex items-center justify-between rounded-xl bg-surface p-4 text-sm">
                 <span>إجمالي البيع: <span className="nums font-bold">{shekel(totalSelling)}</span></span>
-                <span>إجمالي الربح: <span className="nums font-bold text-lime-hover">{shekel(totalProfit)}</span></span>
+                {
+                    username !== 'admin' && (
+                        <span>إجمالي الربح: <span className="nums font-bold text-lime-hover">{shekel(totalProfit)}</span></span>
+                    )
+                }
               </div>
           )}
           {existingFileId ? (
@@ -308,6 +325,8 @@ function CreateSaleModal({ onClose, onExistingFile }: { onClose: () => void; onE
 
 function DraftRow({ draft, onChange, onRemove }: { draft: Draft; onChange: (d: Draft) => void; onRemove: () => void }) {
   const { sellingPrice, profit } = calc(draft);
+  const { username } = useAuth();
+
   return (
       <div className="rounded-xl border border-line p-3">
         <div className="flex items-center justify-between">
@@ -320,7 +339,9 @@ function DraftRow({ draft, onChange, onRemove }: { draft: Draft; onChange: (d: D
                     <span className="nums rounded bg-surface px-1.5 py-0.5 text-xs text-muted">{draft.product.code}</span>
                 )}
               </div>
-              <div className="nums text-xs text-muted">التكلفة {shekel(draft.product.cost)} · السعر {shekel(draft.product.price)}</div>
+              <div className="nums text-xs text-muted">
+                {username !== 'admin' && <>التكلفة {shekel(draft.product.cost)} · </>}السعر {shekel(draft.product.price)}
+              </div>
             </div>
           </div>
           <button className="rounded-lg p-1.5 text-destructive hover:bg-red-50" onClick={onRemove}><Trash2 size={16} /></button>
@@ -388,7 +409,11 @@ function DraftRow({ draft, onChange, onRemove }: { draft: Draft; onChange: (d: D
 
         <div className="mt-3 flex justify-between border-t border-line pt-2 text-sm">
           <span className="text-muted">البيع: <span className="nums">{shekel(sellingPrice * draft.quantity)}</span></span>
-          <span className="font-semibold text-lime-hover">الربح: <span className="nums">{shekel(profit)}</span></span>
+          {
+              username !== 'admin' && (
+                  <span className="font-semibold text-lime-hover">الربح: <span className="nums">{shekel(profit)}</span></span>
+              )
+          }
         </div>
       </div>
   );
@@ -403,6 +428,7 @@ function SaleFileDetail({ id, onClose }: { id: string; onClose: () => void }) {
   });
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { username } = useAuth();
 
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft | null>(null);
@@ -548,7 +574,11 @@ function SaleFileDetail({ id, onClose }: { id: string; onClose: () => void }) {
               {/* Totals */}
               <div className="flex justify-between rounded-xl bg-surface p-3 text-sm">
                 <span>إجمالي البيع: <span className="nums font-bold">{shekel(file.totalSelling)}</span></span>
-                <span>إجمالي الربح: <span className="nums font-bold text-lime-hover">{shekel(file.totalProfit)}</span></span>
+                {
+                    username !== 'admin' && (
+                        <span>إجمالي الربح: <span className="nums font-bold text-lime-hover">{shekel(file.totalProfit)}</span></span>
+                    )
+                }
               </div>
 
               {/* Append new record */}

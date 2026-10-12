@@ -7,6 +7,7 @@ import { shekel } from '@/lib/format.ts';
 import { uploadImageToFirebase } from '@/lib/firebase.ts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import {useAuth} from "@/store/auth.ts";
 
 interface ColorForm {
   name: string;
@@ -41,7 +42,7 @@ export function ProductsAdmin() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<ProductForm | null>(null);
-
+  const { username } = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: ['admin-products', search],
     queryFn: async () => (await api.get(`/admin/products?search=${encodeURIComponent(search)}`)).data,
@@ -88,7 +89,11 @@ export function ProductsAdmin() {
                   <th className="p-3 text-right font-medium">المنتج</th>
                   <th className="p-3 text-right font-medium">الكود</th>
                   <th className="p-3 text-right font-medium">السعر</th>
-                  <th className="p-3 text-right font-medium">التكلفة</th>
+                  {
+                      username !== 'admin' && (
+                          <th className="p-3 text-right font-medium">التكلفة</th>
+                      )
+                  }
                   <th className="p-3 text-right font-medium">الحالة</th>
                   <th className="w-24 p-3 font-medium"></th>
                 </tr>
@@ -104,7 +109,11 @@ export function ProductsAdmin() {
                       </td>
                       <td className="p-3 text-right text-muted"><span className="nums">{p.code}</span></td>
                       <td className="p-3 text-right"><span className="nums">{shekel(p.price)}</span></td>
-                      <td className="p-3 text-right text-muted"><span className="nums">{shekel(p.cost)}</span></td>
+                      {
+                          username !== 'admin' && (
+                              <td className="p-3 text-right text-muted"><span className="nums">{shekel(p.cost)}</span></td>
+                          )
+                      }
                       <td className="p-3 text-right">
                         <div className="flex flex-wrap gap-1">
                           {p.isFeatured && (
@@ -184,7 +193,7 @@ function ProductModal({ form, categories, onClose }: { form: ProductForm; catego
   const [error, setError] = useState<string | null>(null);
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
+  const { username } = useAuth();
   // Field-level validation mirroring the backend productSchema.
   const validate = (s: ProductForm): Record<string, string> => {
     const e: Record<string, string> = {};
@@ -286,11 +295,15 @@ function ProductModal({ form, categories, onClose }: { form: ProductForm; catego
                 <input className={`${errCls('price')} nums`} type="number" min={0} value={state.price} onChange={(e) => { setState({ ...state, price: +e.target.value }); clearError('price'); }} />
                 <Err k="price" />
               </div>
-              <div>
-                <label className="label">التكلفة *</label>
-                <input className={`${errCls('cost')} nums`} type="number" min={0} value={state.cost} onChange={(e) => { setState({ ...state, cost: +e.target.value }); clearError('cost'); }} />
-                <Err k="cost" />
-              </div>
+              {
+                  username !== 'admin' && (
+                      <div>
+                        <label className="label">التكلفة *</label>
+                        <input className={`${errCls('cost')} nums`} type="number" min={0} value={state.cost} onChange={(e) => { setState({ ...state, cost: +e.target.value }); clearError('cost'); }} />
+                        <Err k="cost" />
+                      </div>
+                  )
+              }
               <div>
                 <label className="label">المقاس</label>
                 <input className="input" value={state.size || ''} onChange={(e) => setState({ ...state, size: e.target.value })} />
