@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, FileText, Eye, User, Pencil, X } from 'lucide-react';
 import { api } from '@/lib/api.ts';
 import { shekel } from '@/lib/format.ts';
+import {useAuth} from "@/store/auth.ts";
 
 interface CustomerForm {
     _id: string;
@@ -16,7 +17,7 @@ interface CustomerForm {
 export function CustomersAdmin() {
     const [search, setSearch] = useState('');
     const [editing, setEditing] = useState<CustomerForm | null>(null);
-
+    const { username } = useAuth();
     const { data, isLoading } = useQuery({
         queryKey: ['admin-customers', search],
         queryFn: async () =>
@@ -28,8 +29,8 @@ export function CustomersAdmin() {
             <div className="mb-6 flex items-center justify-between">
                 <h1 className="text-2xl font-bold">العملاء</h1>
                 <span className="nums rounded-full bg-surface px-3 py-1 text-sm text-muted">
-          {data?.total ?? '—'} عميل
-        </span>
+                  {data?.total ?? '—'} عميل
+                </span>
             </div>
 
             <div className="relative mb-4 md:max-w-xs">
@@ -86,7 +87,7 @@ export function CustomersAdmin() {
                           </span>
                                             </div>
                                             <div className="nums text-xs text-muted">
-                                                بيع {shekel(c.saleFile.totalSelling)} · ربح {shekel(c.saleFile.totalProfit)}
+                                                بيع {shekel(c.saleFile.totalSelling)}{username !== 'admin' && <> · ربح {shekel(c.saleFile.totalProfit)}</>}
                                             </div>
                                             {c.saleFile.isVoided && (
                                                 <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs text-destructive">ملغي</span>
@@ -111,11 +112,11 @@ export function CustomersAdmin() {
                                 </td>
 
                                 <td className="p-3 text-right">
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${
-                        c.source === 'online' ? 'bg-blue-100 text-blue-700' : 'bg-surface text-muted'
-                    }`}>
-                      {c.source === 'online' ? 'أونلاين' : 'المحل'}
-                    </span>
+                                    <span className={`rounded-full px-2 py-0.5 text-xs ${
+                                        c.source === 'online' ? 'bg-blue-100 text-blue-700' : 'bg-surface text-muted'
+                                    }`}>
+                                      {c.source === 'online' ? 'أونلاين' : 'المحل'}
+                                    </span>
                                 </td>
 
                                 <td className="p-3">

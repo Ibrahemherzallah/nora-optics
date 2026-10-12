@@ -4,6 +4,7 @@ import { TrendingUp, Wallet, ShoppingCart, Package, Users, Tag } from 'lucide-re
 import { api } from '@/lib/api.ts';
 import { shekel, STATUS_LABELS, STATUS_COLORS } from '@/lib/format.ts';
 import {useState} from "react";
+import {useAuth} from "@/store/auth.ts";
 
 interface Dashboard {
   today: { sales: number; profit: number; count: number };
@@ -15,7 +16,7 @@ interface Dashboard {
 
 export function Dashboard() {
   const [exporting, setExporting] = useState(false);
-
+  const { username } = useAuth();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['dashboard'],
     queryFn: async () => (await api.get<Dashboard>('/admin/dashboard')).data,
@@ -53,18 +54,23 @@ export function Dashboard() {
       </div>
 
       {/* Primary stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={<TrendingUp size={20} />} label="مبيعات اليوم" value={shekel(data.today.sales)} sub={`${data.today.count} عملية`} />
-        <StatCard icon={<Wallet size={20} />} label="ربح اليوم" value={shekel(data.today.profit)} sub="بعد التكلفة" highlight />
-        <StatCard
-          icon={<ShoppingCart size={20} />}
-          label="طلبات قيد الانتظار"
-          value={String(data.orders.pending || 0)}
-          sub={`${data.orders.total} طلب إجمالاً`}
-          to="/admin/orders"
-        />
-        <StatCard icon={<TrendingUp size={20} />} label="ربح هذا الشهر" value={shekel(data.month.profit)} sub={`مبيعات ${shekel(data.month.sales)}`} />
-      </div>
+      {
+        username !== 'admin' && (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard icon={<TrendingUp size={20} />} label="مبيعات اليوم" value={shekel(data.today.sales)} sub={`${data.today.count} عملية`} />
+                <StatCard icon={<Wallet size={20} />} label="ربح اليوم" value={shekel(data.today.profit)} sub="بعد التكلفة" highlight />
+                <StatCard
+                    icon={<ShoppingCart size={20} />}
+                    label="طلبات قيد الانتظار"
+                    value={String(data.orders.pending || 0)}
+                    sub={`${data.orders.total} طلب إجمالاً`}
+                    to="/admin/orders"
+                />
+                <StatCard icon={<TrendingUp size={20} />} label="ربح هذا الشهر" value={shekel(data.month.profit)} sub={`مبيعات ${shekel(data.month.sales)}`} />
+              </div>
+          )
+      }
+
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Recent orders */}
